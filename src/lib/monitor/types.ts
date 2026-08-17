@@ -76,6 +76,14 @@ export interface City {
   country?: string;
 }
 
+export interface Country {
+  name: string;
+  code: string;
+  capital: string;
+  lat: number;
+  lng: number;
+}
+
 export interface WeatherNow {
   temperature: number;
   apparentTemperature: number;

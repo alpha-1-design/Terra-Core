@@ -212,6 +212,20 @@ export default function GlobeView({
     g.globeTileEngineClearCache();
   }, [imagery]);
 
+  /* Natural Earth stores country names under UPPERCASE property keys
+     (NAME_LONG / NAME / ADMIN / SOVEREIGNT) — resolve them in order so every
+     country on the globe gets a real label instead of "Unknown". */
+  function countryName(p: GeoFeature["properties"]): string {
+    return (
+      (p as Record<string, unknown>)["NAME_LONG"] ??
+      (p as Record<string, unknown>)["NAME"] ??
+      (p as Record<string, unknown>)["ADMIN"] ??
+      (p as Record<string, unknown>)["SOVEREIGNT"] ??
+      p.name ??
+      "Unknown"
+    ) as string;
+  }
+
   /* Country polygons */
   useEffect(() => {
     const g = globeRef.current;
@@ -219,7 +233,7 @@ export default function GlobeView({
     g.polygonsData(countries.features)
       .polygonCapColor((f: object) => {
         const feat = f as GeoFeature;
-        const i = Math.abs(hashName(feat.properties?.name ?? "")) % CAP_PALETTE.length;
+        const i = Math.abs(hashName(countryName(feat.properties))) % CAP_PALETTE.length;
         return CAP_PALETTE[i];
       })
       .polygonSideColor(() => "rgba(20,20,20,0.25)")
@@ -227,7 +241,7 @@ export default function GlobeView({
       .polygonAltitude(0.008)
       .polygonLabel(
         (f: object) =>
-          `<div class="nb-tip"><b>${(f as GeoFeature).properties?.name ?? "Unknown"}</b></div>`,
+          `<div class="nb-tip"><b>${countryName((f as GeoFeature).properties)}</b></div>`,
       );
   }, [countries]);
 

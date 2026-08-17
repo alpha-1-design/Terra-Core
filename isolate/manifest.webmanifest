@@ -1,0 +1,39 @@
+{
+  "id": "/",
+  "name": "TERRA-CORE — Global Monitoring Command",
+  "short_name": "Terra-Core",
+  "description": "Live global monitoring: flights, weather, seismic events, space weather, satellite imagery and TV on a real 3D globe.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffd400",
+  "theme_color": "#141414",
+  "categories": ["utilities", "news"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,8 +1,9 @@
+import CountryPicker from "@/components/monitor/CountryPicker";
 import { fetchAlerts, severityColor } from "@/lib/monitor/api/alerts";
 import { aqiInfo, fetchWeather, wmoInfo } from "@/lib/monitor/api/weather";
 import { fmtNum, timeAgo } from "@/lib/monitor/format";
 import { compassPoint, fmtDaylight, sunAltitudeAzimuth } from "@/lib/monitor/sun";
-import type { FocusTarget, WeatherAlert } from "@/lib/monitor/types";
+import type { Country, FocusTarget, WeatherAlert } from "@/lib/monitor/types";
 import { usePolling } from "@/lib/monitor/usePolling";
 import {
   AlertTriangle,
@@ -12,6 +13,7 @@ import {
   Gauge,
   LocateFixed,
   MapPinPlus,
+  Navigation,
   RefreshCw,
   Sunrise,
   Wind,
@@ -39,6 +41,8 @@ interface WeatherPanelProps {
   isWatched: boolean;
   onFocus: (t: FocusTarget) => void;
   onWatchToggle: (loc: WeatherLocation) => void;
+  onCountryPick: (c: Country) => void;
+  onUseMyLocation: () => void;
 }
 
 export default function WeatherPanel({
@@ -46,6 +50,8 @@ export default function WeatherPanel({
   isWatched,
   onFocus,
   onWatchToggle,
+  onCountryPick,
+  onUseMyLocation,
 }: WeatherPanelProps) {
   const { data, error, loading, refresh } = usePolling(
     () =>
@@ -79,12 +85,26 @@ export default function WeatherPanel({
 
   if (!location) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
-        <Cloud className="size-8 text-muted-foreground" />
-        <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-          Select any point on the globe, search a city, or pick a quick chip to
-          pull live conditions + air quality.
-        </p>
+      <div className="flex h-full flex-col">
+        <div className="flex items-center gap-1.5 border-b-2 border-ink px-3 py-2">
+          <CountryPicker onPick={onCountryPick} />
+          <button
+            type="button"
+            onClick={onUseMyLocation}
+            className="flex items-center gap-1.5 border-2 border-ink bg-chalk px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all hover:bg-cobalt/20"
+            style={{ boxShadow: "2px 2px 0 0 #141414" }}
+          >
+            <Navigation className="size-3" />
+            My location
+          </button>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
+          <Cloud className="size-8 text-muted-foreground" />
+          <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            Pick a country, use your location, search a city, or probe any
+            point on the globe for live conditions + air quality.
+          </p>
+        </div>
       </div>
     );
   }
@@ -143,6 +163,20 @@ export default function WeatherPanel({
             <MapPinPlus className="size-3.5" />
           </button>
         </div>
+      </div>
+
+      {/* Probe source: country picker + device location */}
+      <div className="flex items-center gap-1.5 border-b-2 border-ink px-3 py-1.5">
+        <CountryPicker onPick={onCountryPick} />
+        <button
+          type="button"
+          onClick={onUseMyLocation}
+          className="flex items-center gap-1.5 border-2 border-ink bg-chalk px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all hover:bg-cobalt/20 active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+          style={{ boxShadow: "2px 2px 0 0 #141414" }}
+        >
+          <Navigation className="size-3" />
+          My location
+        </button>
       </div>
 
       {error && error !== "no-location" && (

@@ -23,6 +23,8 @@ const REPO_DESCRIPTION =
   "Terra-Core — real-time global monitoring console. Live ADS-B aircraft, weather & AQI, NWS alerts, space weather, aurora oval, precipitation radar, live TV and world news (GDELT / GNews) on an interactive 3D globe. Zero-backend client-side app, installable PWA — an extension of Core-x (Global Watch).";
 const BRANCH = "main";
 const COMMIT_MESSAGE = "Initial commit: Terra-Core global monitoring console";
+const UPDATE_MESSAGE =
+  "Update: country-based weather probing, globe country-name fix, live TV index count";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -100,7 +102,9 @@ async function main() {
   const owner = user.login;
   console.log(`→ Authenticated as @${owner}`);
 
-  // 1. Create the repository (reuse it if it already exists but is empty)
+  // 1. Create the repository (reuse it if it already exists)
+  let mode = "create";
+  let parentSha = null;
   try {
     await api("/user/repos", {
       method: "POST",
@@ -116,36 +120,36 @@ async function main() {
     console.log(`✓ Created ${owner}/${REPO_NAME} (public)`);
   } catch (err) {
     if (!String(err).includes("422")) throw err;
-    // An empty repo still reports a default_branch, so check commits instead:
-    // GET /commits on a repo with zero commits returns 409 "Git Repository is empty".
-    let hasCommits = false;
+    // Repo exists. If main has a ref, this is an update: new commit on top
+    // of history. If there is no ref yet, the repo is empty → seed + orphan.
     try {
-      const commits = await api(`/repos/${owner}/${REPO_NAME}/commits?per_page=1`);
-      hasCommits = commits.length > 0;
-    } catch (err) {
-      if (!String(err).includes("409")) throw err;
+      const ref = await api(`/repos/${owner}/${REPO_NAME}/git/ref/heads/${BRANCH}`);
+      parentSha = ref.object.sha;
+      mode = "update";
+      console.log(`→ Repo exists · updating ${BRANCH} @ ${parentSha.slice(0, 7)}`);
+    } catch (err2) {
+      if (!String(err2).includes("404")) throw err2;
+      console.log(`→ Repo ${owner}/${REPO_NAME} exists (empty) — reusing it`);
     }
-    if (hasCommits) {
-      throw new Error(`Repo ${owner}/${REPO_NAME} already exists with content — stopping.`);
-    }
-    console.log(`→ Repo ${owner}/${REPO_NAME} already exists (empty) — reusing it`);
   }
 
-  // 2. Seed an initial ref — GitHub's Git Database API refuses to create
-  // blobs in a repo with zero commits (409 "Git Repository is empty"), so
-  // the README is committed first via the Contents API. The full tree is
-  // later attached as an orphan commit and main is force-pointed at it,
-  // leaving a single clean initial commit.
-  const readme = readFileSync(join(ROOT, "README.md")).toString("utf8");
-  try {
-    await api(`/repos/${owner}/${REPO_NAME}/contents/README.md`, {
-      method: "PUT",
-      body: { message: "Seed repository", content: Buffer.from(readme).toString("base64") },
-    });
-    console.log("✓ Seeded initial ref (README)");
-  } catch (err) {
-    if (!String(err).includes("422")) throw err;
-    console.log("→ README already present — skipping seed");
+  // 2. Fresh repos only: seed an initial ref — GitHub's Git Database API
+  // refuses to create blobs in a repo with zero commits (409 "Git Repository
+  // is empty"), so the README is committed first via the Contents API. The
+  // full tree is later attached as an orphan commit and main is force-pointed
+  // at it, leaving a single clean initial commit.
+  if (mode === "create") {
+    const readme = readFileSync(join(ROOT, "README.md")).toString("utf8");
+    try {
+      await api(`/repos/${owner}/${REPO_NAME}/contents/README.md`, {
+        method: "PUT",
+        body: { message: "Seed repository", content: Buffer.from(readme).toString("base64") },
+      });
+      console.log("✓ Seeded initial ref (README)");
+    } catch (err) {
+      if (!String(err).includes("422")) throw err;
+      console.log("→ README already present — skipping seed");
+    }
   }
 
   // 3. Upload every file as a git blob
@@ -196,23 +200,35 @@ async function main() {
   console.log("→ Creating tree…");
   const treeSha = await createTree(rootNode);
 
-  // 5. Create the full tree as an ORPHAN commit (no parents), then force
-  // main to it — the seed commit falls out of history, leaving one commit.
+  // 5. Create the commit — an orphan on a fresh repo (the seed commit falls
+  // out of history, leaving one clean commit); a child of HEAD on updates.
   const authorEmail = user.email ?? `${user.id}+${user.login}@users.noreply.github.com`;
   const author = { name: user.name ?? user.login, email: authorEmail };
+  const commitMessage = mode === "update" ? UPDATE_MESSAGE : COMMIT_MESSAGE;
   const { sha: commitSha } = await api(`/repos/${owner}/${REPO_NAME}/git/commits`, {
     method: "POST",
-    body: { message: COMMIT_MESSAGE, tree: treeSha, parents: [], author, committer: author },
+    body: {
+      message: commitMessage,
+      tree: treeSha,
+      parents: parentSha ? [parentSha] : [],
+      author,
+      committer: author,
+    },
   });
-  console.log("✓ Initial commit created");
+  console.log(
+    mode === "update" ? "✓ Commit created on top of history" : "✓ Initial commit created",
+  );
 
-  // 6. Point main at it (force — orphan commit replaces the seed)
+  // 6. Point main at it (fast-forward on updates; force only when the orphan
+  // replaces the seed commit on a fresh repo)
   await api(`/repos/${owner}/${REPO_NAME}/git/refs/heads/${BRANCH}`, {
     method: "PATCH",
-    body: { sha: commitSha, force: true },
+    body: { sha: commitSha, force: mode === "create" },
   });
   console.log(`✓ Pushed ${BRANCH} → https://github.com/${owner}/${REPO_NAME}`);
-  console.log(`  ${files.length} files · 1 commit · public`);
+  console.log(
+    `  ${files.length} files · ${mode === "update" ? "history preserved" : "1 commit"} · public`,
+  );
 }
 
 main()

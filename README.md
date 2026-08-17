@@ -35,6 +35,11 @@ Use `bun` as the package manager.
 | World news | GDELT Project (open, proxied) · GNews API (keyed) · Google News RSS (keyless fallback) |
 | Satellite imagery / country shapes | ESRI World Imagery / Natural Earth |
 
+Weather probes anywhere: pick any of the 196 embedded countries (conditions
+at the capital), use your device location, search a city, or click any point
+on the globe — globe clicks reverse-geocode into real place names via
+OpenStreetMap Nominatim.
+
 ## Local development
 
 ```bash

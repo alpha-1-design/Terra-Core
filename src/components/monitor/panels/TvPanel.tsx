@@ -137,7 +137,12 @@ function ChannelRow({
   );
 }
 
-export default function TvPanel() {
+interface TvPanelProps {
+  /** Reports the indexed channel count upward for the status strip. */
+  onIndexed?: (count: number) => void;
+}
+
+export default function TvPanel({ onIndexed }: TvPanelProps) {
   const [country, setCountry] = useState("us");
   const [channels, setChannels] = useState<TvChannel[]>([]);
   const [loading, setLoading] = useState(false);
@@ -164,9 +169,13 @@ export default function TvPanel() {
       setChannels([]);
       setPos(0);
       missesRef.current = 0;
+      onIndexed?.(0);
       try {
         const chs = await fetchTvChannels(country);
-        if (!cancelled) setChannels(chs);
+        if (!cancelled) {
+          setChannels(chs);
+          onIndexed?.(chs.length);
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "IPTV error");

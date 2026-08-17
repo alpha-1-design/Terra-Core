@@ -52,6 +52,12 @@ export function placesToCities(fc: GeoCollection): City[] {
     const props = f.properties;
     const pop = props.pop_max ?? 0;
     if (!pop) continue;
+    // Skip nameless features instead of rendering "Unknown" places.
+    const name =
+      [props.name, props.nameascii, props.namealt, props.adm0name].find(
+        (v): v is string => typeof v === "string" && v.length > 0,
+      ) ?? null;
+    if (!name) continue;
     const coords = f.geometry.coordinates as unknown;
     let lat: number | undefined;
     let lng: number | undefined;
@@ -66,13 +72,7 @@ export function placesToCities(fc: GeoCollection): City[] {
     if (lat === undefined || lng === undefined || Number.isNaN(lat) || Number.isNaN(lng)) {
       continue;
     }
-    cities.push({
-      name: props.name ?? "Unknown",
-      lat,
-      lng,
-      pop,
-      country: props.adm0name,
-    });
+    cities.push({ name, lat, lng, pop, country: props.adm0name });
   }
   return cities.sort((a, b) => b.pop - a.pop);
 }

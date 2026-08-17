@@ -160,6 +160,12 @@ export default function Docs() {
               broadcast TV and a worldwide news wire.
             </p>
             <p className="mt-3">
+              Weather probes anywhere: pick any of the <b>196 embedded
+              countries</b> (conditions at the capital), use your device
+              location, search a city, or click any point on the globe — the
+              console reverse-geocodes it into a real place name.
+            </p>
+            <p className="mt-3">
               It is <b>100% client-side</b> — there is no app server and no
               account. Every layer is pulled directly from free public feeds
               into your browser, and the only persistence is your watchlist,

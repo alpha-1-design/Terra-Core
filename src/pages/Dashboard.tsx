@@ -13,6 +13,7 @@ import WeatherPanel, {
 } from "@/components/monitor/panels/WeatherPanel";
 import { fetchAurora, AURORA_POLL_MS } from "@/lib/monitor/api/aurora";
 import { fetchFlights, FLIGHT_POLL_MS } from "@/lib/monitor/api/flights";
+import { reverseGeocode } from "@/lib/monitor/api/geocode";
 import {
   fetchIss,
   fetchQuakes,
@@ -24,7 +25,9 @@ import {
   fetchPopulatedPlaces,
   placesToCities,
 } from "@/lib/monitor/api/staticData";
+import { DEMO_STREAMS } from "@/lib/monitor/api/tv";
 import type {
+  Country,
   FocusTarget,
   ImageryMode,
 } from "@/lib/monitor/types";
@@ -74,34 +77,109 @@ export default function Dashboard() {
   const [auroraEnabled, setAuroraEnabled] = useState(true);
   const [focus, setFocus] = useState<FocusTarget | null>(null);
   const [tab, setTab] = useState("flights");
+  const [tvIndexed, setTvIndexed] = useState(0);
+  /* Mission default probe point — replaced the moment a real location is
+     chosen (search, globe, country picker, or geolocation). */
   const [weatherLoc, setWeatherLoc] = useState<WeatherLocation>({
     name: "San Francisco",
     lat: 37.7749,
     lng: -122.4194,
   });
+  const defaultLocRef = useRef(true);
+  const applyLoc = useCallback((loc: WeatherLocation) => {
+    defaultLocRef.current = false;
+    setWeatherLoc(loc);
+  }, []);
+
+  /* If the operator grants location, probe from there instead of the
+     San Francisco default — one silent attempt, never an error surface. */
+  useEffect(() => {
+    if (!defaultLocRef.current || !("geolocation" in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (!defaultLocRef.current) return;
+        const loc: WeatherLocation = {
+          name: "Your location",
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+        defaultLocRef.current = false;
+        setWeatherLoc(loc);
+        void reverseGeocode(loc.lat, loc.lng).then((n) => {
+          if (n && defaultLocRef.current === false) {
+            setWeatherLoc({ name: n, lat: loc.lat, lng: loc.lng });
+          }
+        });
+      },
+      () => {
+        /* permission denied / unavailable — keep the mission default */
+      },
+      { timeout: 8000, maximumAge: 10 * 60_000 },
+    );
+  }, []);
 
   const isWatched = watchlist.isWatched(weatherLoc.name);
 
   /* ── Handlers ──────────────────────────────────────── */
   const handlePick = (name: string, lat: number, lng: number) => {
-    setWeatherLoc({ name, lat, lng });
+    applyLoc({ name, lat, lng });
     setFocus({ id: `city-${name}`, kind: "city", lat, lng, label: name });
     setTab("weather");
+  };
+
+  const handleCountryPick = (c: Country) => {
+    const label = `${c.name} — ${c.capital}`;
+    applyLoc({ name: label, lat: c.lat, lng: c.lng });
+    setFocus({ id: `country-${c.code}`, kind: "city", lat: c.lat, lng: c.lng, label });
+    setTab("weather");
+  };
+
+  const handleUseMyLocation = () => {
+    if (!("geolocation" in navigator)) {
+      toast.error("Geolocation is not supported by this browser");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc: WeatherLocation = {
+          name: "Your location",
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+        applyLoc(loc);
+        setFocus({ id: "my-location", kind: "city", lat: loc.lat, lng: loc.lng, label: loc.name });
+        setTab("weather");
+        void reverseGeocode(loc.lat, loc.lng).then((n) => {
+          if (n) setWeatherLoc({ name: n, lat: loc.lat, lng: loc.lng });
+        });
+      },
+      () => toast.error("Location permission denied — keeping current probe"),
+      { timeout: 10_000 },
+    );
   };
 
   const handleFocus = (t: FocusTarget) => {
     setFocus(t);
     if (t.kind === "city" || t.kind === "watch") {
-      setWeatherLoc({ name: t.label, lat: t.lat, lng: t.lng });
+      applyLoc({ name: t.label, lat: t.lat, lng: t.lng });
     }
   };
 
+  /* Globe clicks start as a raw POINT and resolve to a real place name via
+     reverse geocoding when it lands (Nominatim ≈1 req/s, click-driven). */
+  const globeClickSeq = useRef(0);
   const handleGlobePoint = (lat: number, lng: number) => {
+    const seq = ++globeClickSeq.current;
     const name = `POINT ${Math.abs(lat).toFixed(2)}°${lat >= 0 ? "N" : "S"} ${Math.abs(
       lng,
     ).toFixed(2)}°${lng >= 0 ? "E" : "W"}`;
-    setWeatherLoc({ name, lat, lng });
+    applyLoc({ name, lat, lng });
     setFocus({ id: name, kind: "point", lat, lng, label: name });
+    void reverseGeocode(lat, lng).then((resolved) => {
+      if (!resolved || seq !== globeClickSeq.current) return;
+      setWeatherLoc({ name: resolved, lat, lng });
+      setFocus({ id: resolved, kind: "point", lat, lng, label: resolved });
+    });
   };
 
   const handleWatchToggle = (loc: WeatherLocation) => {
@@ -336,11 +414,13 @@ export default function Dashboard() {
                 isWatched={isWatched}
                 onFocus={handleFocus}
                 onWatchToggle={handleWatchToggle}
+                onCountryPick={handleCountryPick}
+                onUseMyLocation={handleUseMyLocation}
               />
             </TabsContent>
 
             <TabsContent value="tv" className="min-h-0 flex-1">
-              <TvPanel />
+              <TvPanel onIndexed={setTvIndexed} />
             </TabsContent>
 
             <TabsContent value="news" className="min-h-0 flex-1">
@@ -374,7 +454,7 @@ export default function Dashboard() {
         auroraOk={!aurora.error && (aurora.data?.points.length ?? 0) > 0}
         imagery={imagery}
         cityCount={cityCount}
-        tvCount={18}
+        tvCount={tvIndexed + DEMO_STREAMS.length}
         news={news.data}
       />
     </div>

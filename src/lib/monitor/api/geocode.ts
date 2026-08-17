@@ -27,6 +27,39 @@ export async function searchPlaces(query: string): Promise<GeocodeResult[]> {
   }));
 }
 
+/**
+ * Reverse-geocode a coordinate to a readable place name (used when probing
+ * the globe, so a click becomes "Paris, France" instead of a bare POINT).
+ * Returns null when the lookup fails or lands in open water.
+ */
+export async function reverseGeocode(
+  lat: number,
+  lng: number,
+): Promise<string | null> {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lng),
+    format: "jsonv2",
+    zoom: "10",
+    addressdetails: "0",
+  });
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?${params}`,
+      { headers: { Accept: "application/json" } },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as { display_name?: string; name?: string };
+    if (!json.display_name) return null;
+    // Trim to the most useful slice: place, admin area, country.
+    const parts = json.display_name.split(",").map((s) => s.trim());
+    if (parts.length <= 2) return json.display_name;
+    return parts.slice(0, 3).join(", ");
+  } catch {
+    return null;
+  }
+}
+
 /** Quick-jump anchor cities (real coordinates & populations). */
 export const MAJOR_CITIES: City[] = [
   { name: "Tokyo", lat: 35.6762, lng: 139.6503, pop: 37_274_000, country: "JP" },

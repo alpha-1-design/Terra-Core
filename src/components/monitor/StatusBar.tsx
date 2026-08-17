@@ -73,7 +73,7 @@ export default function StatusBar({
     },
     { label: "Imagery", value: IMAGERY_LABEL[imagery], ok: true },
     { label: "Cities", value: fmtNum(cityCount), ok: cityCount > 0 },
-    { label: "TV", value: `${tvCount} idx`, ok: true },
+    { label: "TV", value: `${tvCount} ch`, ok: true },
     {
       label: "News",
       value: news ? `${news.articles.length} hd${news.source === "gnews" ? "·K" : ""}` : "—",
