@@ -3,21 +3,8 @@ import type { Flight } from "../types";
 
 const STATES_URL = "https://opensky-network.org/api/states/all";
 
-/**
- * Fetch live aircraft state vectors from the OpenSky Network.
- * Anonymous access is credit-limited: we poll gently and back off on 429.
- */
-export async function fetchFlights(): Promise<Flight[]> {
-  const res = await fetch(STATES_URL, { cache: "no-store" });
-
-  if (res.status === 429) {
-    throw new RateLimitError("OpenSky rate limited", 300_000);
-  }
-  if (!res.ok) {
-    throw new Error(`OpenSky ${res.status}`);
-  }
-
-  const json = (await res.json()) as { states: (unknown[] | null)[] };
+/** Parse the OpenSky states array into Flight[] (shared by both sources). */
+function parseStates(json: { states?: (unknown[] | null)[] }): Flight[] {
   const rows = (json.states ?? []).filter((r): r is unknown[] => !!r);
 
   const flights: Flight[] = [];
@@ -45,6 +32,42 @@ export async function fetchFlights(): Promise<Flight[]> {
     });
   }
   return flights;
+}
+
+/**
+ * Fetch live aircraft state vectors.
+ *
+ * OpenSky blocks cross-origin browsers (`Access-Control-Allow-Origin` is its
+ * own origin), so production routes through the `api/flights.ts` Vercel
+ * function (CDN-cached, one upstream call serves all visitors). The direct
+ * endpoint is kept as a fallback for environments where CORS is open or not
+ * enforced.
+ */
+export async function fetchFlights(): Promise<Flight[]> {
+  try {
+    const res = await fetch("/api/flights", { cache: "no-store" });
+    if (res.status === 429) {
+      throw new RateLimitError("OpenSky rate limited", 300_000);
+    }
+    if (!res.ok) {
+      throw new Error(`Flights proxy ${res.status}`);
+    }
+    const json = (await res.json()) as { states?: (unknown[] | null)[] };
+    if (!Array.isArray(json.states)) {
+      throw new Error("Flights proxy: unexpected payload");
+    }
+    return parseStates(json);
+  } catch (proxyErr) {
+    // Fall back to the direct OpenSky endpoint.
+    const res = await fetch(STATES_URL, { cache: "no-store" });
+    if (res.status === 429) {
+      throw new RateLimitError("OpenSky rate limited", 300_000);
+    }
+    if (!res.ok) {
+      throw new Error(`OpenSky ${res.status}`);
+    }
+    return parseStates((await res.json()) as { states?: (unknown[] | null)[] });
+  }
 }
 
 export const FLIGHT_POLL_MS = 60_000;

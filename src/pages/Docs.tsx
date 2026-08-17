@@ -5,7 +5,7 @@ import { Link } from "react-router";
 const SOURCE_ROWS: [string, string, string][] = [
   ["3D globe imagery", "NASA GIBS (Blue Marble · MODIS live · Black Marble)", "No"],
   ["Country shapes · population", "Natural Earth", "No"],
-  ["Live aircraft", "OpenSky Network (ADS-B)", "No"],
+  ["Live aircraft", "OpenSky Network (ADS-B, proxied)", "No"],
   ["Earthquakes (24h)", "USGS Earthquake Hazards", "No"],
   ["ISS position", "WhereTheISS.at", "No"],
   ["Weather · solar · air quality", "Open-Meteo · EPA AQI", "No"],

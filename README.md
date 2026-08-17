@@ -23,7 +23,7 @@ Use `bun` as the package manager.
 
 | Layer | Source |
 | --- | --- |
-| Live aircraft | OpenSky Network `states/all` |
+| Live aircraft | OpenSky Network (proxied via `api/flights.ts` — OpenSky blocks cross-origin browsers) |
 | Seismic events | USGS Earthquake Hazards (past 24h) |
 | ISS position | WhereTheISS.at |
 | Weather / air quality / solar | Open-Meteo + EPA AQI |
@@ -135,9 +135,10 @@ returns JSON. Update the README table so operators know which env var to set.
 - `public/og-image.png` is the 1200×630 social preview card (regenerate with
   `bun run scripts/generate-icons.mjs`).
 
-> **After your first Vercel deploy**, replace the placeholder domain
-> `terra-core.vercel.app` in `index.html` (canonical, `og:url`, JSON-LD),
-> `public/sitemap.xml` and `public/robots.txt` with your real deployment URL.
+SEO metadata points at the live deployment domain
+(`https://terra-core-nu.vercel.app/`) in `index.html` (canonical, `og:url`,
+JSON-LD), `public/sitemap.xml` and `public/robots.txt`. If you deploy under a
+different URL, update those three files.
 
 ## Credits
 
