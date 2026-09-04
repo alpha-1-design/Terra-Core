@@ -38,12 +38,22 @@ jobs:
 
       - run: chmod +x android/gradlew
 
-      - name: Generate release keystore
+      # Reuse a stable signing key when ANDROID_KEYSTORE_BASE64 is set (so
+      # users can install newer release APKs over older ones). Without it, an
+      # ephemeral key is generated — fine for debug/testing, but reinstalls
+      # over an earlier release will hit a signature mismatch.
+      - name: Restore or generate release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          keytool -genkey -v -keystore android/app/release.keystore \
-            -alias terra -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass terra -keypass terra \
-            -dname "CN=Terra Core, OU=Alpha-1, O=Alpha-1 Design, L=Kumasi, ST=Ashanti, C=GH"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android/app/release.keystore
+          else
+            keytool -genkey -v -keystore android/app/release.keystore \
+              -alias terra -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass 'terra-core-2026' -keypass 'terra-core-2026' \
+              -dname "CN=Terra Core, OU=Alpha-1, O=Alpha-1 Design, L=Kumasi, ST=Ashanti, C=GH"
+          fi
 
       - name: Build debug APK
         run: cd android && ./gradlew assembleDebug --no-daemon --stacktrace
