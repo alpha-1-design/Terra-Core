@@ -8,10 +8,12 @@ import FlightsPanel from "@/components/monitor/panels/FlightsPanel";
 import NewsPanel from "@/components/monitor/panels/NewsPanel";
 import TvPanel from "@/components/monitor/panels/TvPanel";
 import WatchlistPanel from "@/components/monitor/panels/WatchlistPanel";
+import CctvPanel from "@/components/monitor/panels/CctvPanel";
 import WeatherPanel, {
   type WeatherLocation,
 } from "@/components/monitor/panels/WeatherPanel";
 import { fetchAurora, AURORA_POLL_MS } from "@/lib/monitor/api/aurora";
+import { fetchCctvStreams, CCTV_POLL_MS } from "@/lib/monitor/api/cctv";
 import { fetchFlights, FLIGHT_POLL_MS } from "@/lib/monitor/api/flights";
 import { reverseGeocode } from "@/lib/monitor/api/geocode";
 import {
@@ -45,6 +47,7 @@ export default function Dashboard() {
 
   /* ── Live data streams ─────────────────────────────── */
   const flights = usePolling(fetchFlights, { intervalMs: FLIGHT_POLL_MS });
+  const cctv = usePolling(fetchCctvStreams, { intervalMs: CCTV_POLL_MS });
   const quakes = usePolling(fetchQuakes, { intervalMs: 60_000 });
   const iss = usePolling(fetchIss, { intervalMs: 10_000 });
   const space = usePolling(fetchSpaceWeather, { intervalMs: 5 * 60_000 });
@@ -376,6 +379,7 @@ export default function Dashboard() {
                 ["events", "Events"],
                 ["weather", "Weather"],
                 ["tv", "TV"],
+                ["cctv", "CCTV"],
                 ["news", "News"],
                 ["watch", "Watch"],
               ].map(([id, label]) => (
@@ -423,6 +427,10 @@ export default function Dashboard() {
               <TvPanel onIndexed={setTvIndexed} />
             </TabsContent>
 
+            <TabsContent value="cctv" className="min-h-0 flex-1">
+              <CctvPanel streams={cctv.data ?? []} />
+            </TabsContent>
+
             <TabsContent value="news" className="min-h-0 flex-1">
               <NewsPanel
                 region={newsRegion}
@@ -441,6 +449,28 @@ export default function Dashboard() {
         </aside>
       </main>
 
+      {/* ── Floating navigation ───────────────────────────── */}
+      <div className="fixed bottom-6 right-6 flex flex-col gap-2">
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="border-2 border-ink bg-volt text-paper rounded-full p-2 shadow-lg hover:bg-cobalt/20 transition-colors"
+          title="Top"
+        >
+          <svg className="size-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+          </svg>
+        </button>
+        <button
+          onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}
+          className="border-2 border-ink bg-volt text-paper rounded-full p-2 shadow-lg hover:bg-cobalt/20 transition-colors"
+          title="Bottom"
+        >
+          <svg className="size-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+          </svg>
+        </button>
+      </div>
+
       {/* ── Status strip ───────────────────────────────── */}
       <StatusBar
         flightCount={flights.data?.length ?? 0}
@@ -454,7 +484,7 @@ export default function Dashboard() {
         auroraOk={!aurora.error && (aurora.data?.points.length ?? 0) > 0}
         imagery={imagery}
         cityCount={cityCount}
-        tvCount={tvIndexed + DEMO_STREAMS.length}
+        tvCount={tvIndexed + DEMO_STREAMS.length + (cctv.data?.length ?? 0)}
         news={news.data}
       />
     </div>

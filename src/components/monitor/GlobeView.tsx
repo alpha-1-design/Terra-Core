@@ -15,8 +15,11 @@ import type {
   ImageryMode,
   IssState,
   Quake,
+  TvChannel,
 } from "@/lib/monitor/types";
 import { subSolarPoint, terminatorCurve, type TerminatorPoint } from "@/lib/monitor/sun";
+import { CCTV_DEMO_STREAMS } from "@/lib/monitor/api/cctv";
+import type { CctvChannel } from "@/lib/monitor/api/cctv";
 
 type GlobeHandle = InstanceType<typeof Globe>;
 
@@ -49,7 +52,12 @@ interface SunPoint {
   lat: number;
   lng: number;
 }
-type GlobePoint = FlightPoint | QuakePoint | AuroraPoint | SunPoint;
+
+interface CctvPoint {
+  kind: "cctv";
+  cctv: TvChannel & { lat: number; lng: number };
+}
+type GlobePoint = FlightPoint | QuakePoint | AuroraPoint | SunPoint | CctvPoint;
 
 interface HexBinShim {
   points: unknown[];
@@ -271,7 +279,7 @@ export default function GlobeView({
       });
   }, [cities]);
 
-  /* Flights + quakes + aurora oval + sub-solar point as one points layer */
+  /* Flights + quakes + aurora oval + sub-solar point + CCTV as one points layer */
   const points = useMemo<GlobePoint[]>(() => {
     const top = [...flights]
       .sort((a, b) => (b.baroAltitude ?? 0) - (a.baroAltitude ?? 0))
@@ -287,7 +295,11 @@ export default function GlobeView({
       : [];
     const sun = subSolarPoint(new Date());
     const sunPt: SunPoint[] = [{ kind: "sun", lat: sun.lat, lng: sun.lng }];
-    return [...pts, ...qpts, ...auro, ...sunPt];
+    const cctvPts: CctvPoint[] = CCTV_DEMO_STREAMS.map((ch: CctvChannel) => ({
+      kind: "cctv",
+      cctv: ch,
+    }));
+    return [...pts, ...qpts, ...auro, ...sunPt, ...cctvPts];
   }, [flights, quakes, aurora, auroraEnabled]);
 
   useEffect(() => {
@@ -299,6 +311,7 @@ export default function GlobeView({
         if (p.kind === "flight") return p.flight.lat;
         if (p.kind === "quake") return p.quake.lat;
         if (p.kind === "aurora") return p.aurora.lat;
+        if (p.kind === "cctv") return p.cctv.lat;
         return p.lat;
       })
       .pointLng((d: object) => {
@@ -306,6 +319,7 @@ export default function GlobeView({
         if (p.kind === "flight") return p.flight.lng;
         if (p.kind === "quake") return p.quake.lng;
         if (p.kind === "aurora") return p.aurora.lng;
+        if (p.kind === "cctv") return p.cctv.lng;
         return p.lng;
       })
       .pointColor((d: object) => {
@@ -316,6 +330,7 @@ export default function GlobeView({
           const t = p.aurora.intensity / p.maxIntensity;
           return `rgba(70,255,170,${(0.25 + t * 0.6).toFixed(2)})`;
         }
+        if (p.kind === "cctv") return "#1e90ff";
         return "#ff4d00";
       })
       .pointAltitude((d: object) => {
@@ -326,6 +341,7 @@ export default function GlobeView({
         }
         if (p.kind === "quake") return 0.012 + Math.min(0.05, p.quake.mag * 0.004);
         if (p.kind === "aurora") return 0.022;
+        if (p.kind === "cctv") return 0.03;
         return 0.015;
       })
       .pointRadius((d: object) => {
@@ -336,6 +352,7 @@ export default function GlobeView({
           const t = p.aurora.intensity / p.maxIntensity;
           return 0.35 + t * 1.05;
         }
+        if (p.kind === "cctv") return 0.25;
         return 0.85;
       })
       .pointLabel((d: object) => {
@@ -359,6 +376,10 @@ export default function GlobeView({
           return `<div class="nb-tip"><b>AURORA</b> · intensity ${Math.round(
             p.aurora.intensity,
           )} / ${Math.round(p.maxIntensity)}<br/>NOAA OVATION forecast</div>`;
+        }
+        if (p.kind === "cctv") {
+          const c = p.cctv;
+          return `<div class="nb-tip"><b>CCTV</b> · ${c.name}<br/>${c.country.toUpperCase()}<br/>${c.url}</div>`;
         }
         return `<div class="nb-tip"><b>SUB-SOLAR POINT</b><br/>Sun directly overhead · ${fmt(
           Math.abs(p.lat),

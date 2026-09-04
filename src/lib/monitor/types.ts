@@ -131,6 +131,8 @@ export interface TvChannel {
   url: string;
   group?: string;
   demo?: boolean;
+  lat?: number;
+  lng?: number;
 }
 
 export interface GeocodeResult {

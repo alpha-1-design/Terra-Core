@@ -101,6 +101,8 @@ export const DEMO_STREAMS: TvChannel[] = [
     url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
     group: "reference",
     demo: true,
+    lat: 0,
+    lng: 0,
   },
   {
     id: "demo-tos",
@@ -110,6 +112,8 @@ export const DEMO_STREAMS: TvChannel[] = [
     url: "https://test-streams.mux.dev/tos_ismc/main.m3u8",
     group: "reference",
     demo: true,
+    lat: 0,
+    lng: 0,
   },
   {
     id: "demo-akamai-live",
@@ -119,6 +123,8 @@ export const DEMO_STREAMS: TvChannel[] = [
     url: "https://moctobpltc-i.akamaihd.net/hls/live/571329/eight/playlist.m3u8",
     group: "reference",
     demo: true,
+    lat: 0,
+    lng: 0,
   },
   {
     id: "demo-tos-unified",
@@ -128,5 +134,7 @@ export const DEMO_STREAMS: TvChannel[] = [
     url: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
     group: "reference",
     demo: true,
+    lat: 0,
+    lng: 0,
   },
 ];
