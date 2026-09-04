@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="manifest" href="/manifest.webmanifest" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" id="viewport-meta" />
 
   <!-- Primary SEO -->
   <title>TERRA-CORE // Live Global Monitoring Command</title>
@@ -79,7 +79,24 @@
 
 <body>
   <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
+  <script>
+  // Optional desktop site view for APK - toggle via localStorage
+  const desktopView = localStorage.getItem('terra-desktop-view');
+  const viewportMeta = document.getElementById('viewport-meta');
+  
+  if (desktopView === 'true' && viewportMeta) {
+    viewportMeta.content = 'width=1200, initial-scale=0.5, user-scalable=yes';
+  }
+  
+  // Toggle function for desktop view
+  window.toggleDesktopView = function() {
+    const isDesktop = viewportMeta.content.includes('width=1200');
+    localStorage.setItem('terra-desktop-view', !isDesktop);
+    viewportMeta.content = !isDesktop ? 'width=1200, initial-scale=0.5, user-scalable=yes' : 'width=device-width, initial-scale=1.0, user-scalable=yes';
+  };
+</script>
+
+<script type="module" src="/src/main.tsx"></script>
 </body>
 
 </html>
