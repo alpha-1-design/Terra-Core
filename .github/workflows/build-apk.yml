@@ -34,8 +34,6 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: actions/setup-vpython@v1
-
       - run: npx cap sync android
 
       - run: chmod +x android/gradlew
