@@ -13,7 +13,7 @@ import { Capacitor } from "@capacitor/core";
  * latest GitHub release and hands the user a download link when newer.
  */
 
-export const GITHUB_REPO = "alpha-1-design/terra-core";
+export const GITHUB_REPO = "alpha-1-design/Terra-Core";
 
 export interface OtaUpdate {
   tag: string;
