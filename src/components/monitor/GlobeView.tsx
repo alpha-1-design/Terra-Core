@@ -87,6 +87,21 @@ interface RingDatum {
 const DAY_MAX_LEVEL = 8;
 const LIVE_MAX_LEVEL = 9;
 
+/*
+ * globeTileEngineUrl streams NASA GIBS tiles progressively, but until they
+ * arrive (or if a tile request fails / is blocked on the network) the sphere
+ * had no texture at all, so it rendered as flat black — that's the "broken
+ * earth" seen in Day and Night mode. A static base texture underneath the
+ * tile engine guarantees the globe always shows *something* recognizable
+ * immediately, tiles then layer on top as they load.
+ */
+function fallbackImageUrl(mode: ImageryMode): string {
+  if (mode === "night") {
+    return "https://unpkg.com/three-globe/example/img/earth-night.jpg";
+  }
+  return "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+}
+
 function tileUrl(mode: ImageryMode): (x: number, y: number, level: number) => string {
   const today = new Date().toISOString().slice(0, 10);
   switch (mode) {
@@ -179,6 +194,7 @@ export default function GlobeView({
       .showAtmosphere(true)
       .atmosphereColor("#141414")
       .atmosphereAltitude(0.16)
+      .globeImageUrl(fallbackImageUrl(imagery))
       .globeTileEngineUrl(tileUrl(imagery))
       .globeTileEngineMaxLevel(DAY_MAX_LEVEL);
 
@@ -228,6 +244,7 @@ export default function GlobeView({
   useEffect(() => {
     const g = globeRef.current;
     if (!g) return;
+    g.globeImageUrl(fallbackImageUrl(imagery));
     g.globeTileEngineUrl(tileUrl(imagery));
     g.globeTileEngineMaxLevel(imagery === "live" ? LIVE_MAX_LEVEL : DAY_MAX_LEVEL);
     g.globeTileEngineClearCache();
