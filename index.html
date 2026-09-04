@@ -80,19 +80,25 @@
 <body>
   <div id="root"></div>
   <script>
-  // Optional desktop site view for APK - toggle via localStorage
-  const desktopView = localStorage.getItem('terra-desktop-view');
-  const viewportMeta = document.getElementById('viewport-meta');
-  
-  if (desktopView === 'true' && viewportMeta) {
-    viewportMeta.content = 'width=1200, initial-scale=0.5, user-scalable=yes';
+  // Desktop site view — the APK defaults to the desktop-style layout (like a
+  // browser's "request desktop site"); the preference persists per device in
+  // localStorage and can be flipped at any time from the console header.
+  var viewportMeta = document.getElementById('viewport-meta');
+  var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  var DESKTOP_VIEWPORT = 'width=1200, initial-scale=0.5, user-scalable=yes';
+  var MOBILE_VIEWPORT = 'width=device-width, initial-scale=1.0, user-scalable=yes';
+  var stored = null;
+  try { stored = localStorage.getItem('terra-desktop-view'); } catch (e) { /* storage unavailable */ }
+  var desktop = stored === 'true' || (stored === null && isNative);
+  if (viewportMeta) {
+    viewportMeta.content = desktop ? DESKTOP_VIEWPORT : MOBILE_VIEWPORT;
   }
-  
-  // Toggle function for desktop view
+
   window.toggleDesktopView = function() {
-    const isDesktop = viewportMeta.content.includes('width=1200');
-    localStorage.setItem('terra-desktop-view', !isDesktop);
-    viewportMeta.content = !isDesktop ? 'width=1200, initial-scale=0.5, user-scalable=yes' : 'width=device-width, initial-scale=1.0, user-scalable=yes';
+    var isDesktop = viewportMeta.content.indexOf('width=1200') !== -1;
+    var next = !isDesktop;
+    try { localStorage.setItem('terra-desktop-view', String(next)); } catch (e) { /* ignore */ }
+    viewportMeta.content = next ? DESKTOP_VIEWPORT : MOBILE_VIEWPORT;
   };
 </script>
 

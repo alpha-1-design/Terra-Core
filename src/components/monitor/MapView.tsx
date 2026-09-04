@@ -2,6 +2,10 @@ import { useEffect } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import {
+  GOES_FIRE_LAYERS,
+  goesFireTileUrl,
+} from "@/lib/monitor/api/fires";
 import type {
   Flight,
   FocusTarget,
@@ -14,6 +18,8 @@ interface MapViewProps {
   baseLayer: "streets" | "satellite";
   radar: RadarData | null;
   radarEnabled: boolean;
+  firesDate: string | null;
+  firesEnabled: boolean;
   flights: Flight[];
   quakes: Quake[];
   iss: IssState | null;
@@ -77,6 +83,27 @@ function RadarLayer({ radar, enabled }: { radar: RadarData | null; enabled: bool
   return null;
 }
 
+/* NASA GIBS GOES fire-temperature overlays (Americas) */
+function FiresLayer({ date, enabled }: { date: string | null; enabled: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!enabled || !date) return;
+    const layers = GOES_FIRE_LAYERS.map((def) =>
+      L.tileLayer(goesFireTileUrl(def, date), {
+        opacity: 0.8,
+        zIndex: 460,
+        maxNativeZoom: 7,
+        tileSize: 256,
+      }),
+    );
+    layers.forEach((l) => l.addTo(map));
+    return () => {
+      layers.forEach((l) => map.removeLayer(l));
+    };
+  }, [map, date, enabled]);
+  return null;
+}
+
 /* Fly the map to the active focus target */
 function FlyToController({ focus }: { focus: FocusTarget | null }) {
   const map = useMap();
@@ -97,6 +124,8 @@ export default function MapView({
   baseLayer,
   radar,
   radarEnabled,
+  firesDate,
+  firesEnabled,
   flights,
   quakes,
   iss,
@@ -133,6 +162,7 @@ export default function MapView({
         />
       )}
       <RadarLayer radar={radar} enabled={radarEnabled} />
+      <FiresLayer date={firesDate} enabled={firesEnabled} />
       <FlyToController focus={focus} />
 
       {topFlights.map((f) => (
@@ -232,13 +262,21 @@ export default function MapView({
         </Marker>
       ))}
 
-      {/* Attribution layer for RainViewer when radar is on */}
+      {/* Attribution chips */}
       {radarEnabled && radar && radar.frames.length > 0 && (
         <div
           className="pointer-events-none absolute bottom-0 right-0 z-[1000] bg-white/90 px-1 font-mono text-[9px] uppercase tracking-wider"
           style={{ border: "1px solid #141414" }}
         >
           Radar © RainViewer
+        </div>
+      )}
+      {firesEnabled && firesDate && (
+        <div
+          className="pointer-events-none absolute bottom-0 left-0 z-[1000] bg-white/90 px-1 font-mono text-[9px] uppercase tracking-wider"
+          style={{ border: "1px solid #141414" }}
+        >
+          Fires © NASA GIBS GOES · {firesDate}
         </div>
       )}
     </MapContainer>

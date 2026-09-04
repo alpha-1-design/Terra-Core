@@ -9,7 +9,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Is the data actually live?",
-    a: "Yes — every layer pulls from a real public feed in real time: OpenSky ADS-B aircraft, USGS earthquakes, Open-Meteo weather, NOAA space weather and aurora, RainViewer radar, iptv-org TV, and the world news wire. The status bar at the bottom shows each feed's health.",
+    a: "Yes — every layer pulls from a real public feed in real time: OpenSky ADS-B aircraft, USGS earthquakes, Open-Meteo weather, NOAA space weather and aurora, RainViewer radar, iptv-org TV, public CCTV cameras, and the world news wire. The status bar at the bottom shows each feed's health.",
   },
   {
     q: "Why does a feed sometimes show offline?",
@@ -21,7 +21,15 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Can I install Terra-Core like an app?",
-    a: "Yes — it's a PWA. On desktop, use the install icon in the address bar; on mobile, 'Add to Home Screen'. It opens fullscreen with its own icon, and the app shell works offline.",
+    a: "Yes — two ways. It's a PWA: on desktop use the install icon in the address bar, on mobile 'Add to Home Screen' — it opens fullscreen with its own icon and the app shell works offline. On Android you can also install the native APK for a desktop-style console layout.",
+  },
+  {
+    q: "Can I get Terra-Core as an Android APK?",
+    a: "Yes — the app is packaged as a native Android app with Capacitor. Every push to the repository builds a debug and a signed release APK automatically; install the APK directly on any Android 6+ device, no Play Store required. The APK opens the console in a desktop-style viewport, with an in-app toggle to switch between desktop and mobile layouts (your choice is remembered).",
+  },
+  {
+    q: "Why don't some CCTV streams play?",
+    a: "Public camera feeds are frequently geo-blocked or taken offline. The CCTV panel degrades gracefully, and the two built-in demo streams (MJPEG and HLS test feeds) always play so you can verify playback instantly.",
   },
   {
     q: "Do I need an API key for anything?",

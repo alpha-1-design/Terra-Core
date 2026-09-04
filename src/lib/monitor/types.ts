@@ -159,3 +159,12 @@ export interface FocusTarget {
 }
 
 export type ImageryMode = "day" | "live" | "night";
+
+/** A propagated satellite ground position (for the globe layer). */
+export interface Satellite {
+  satId: string;
+  name: string;
+  lat: number;
+  lng: number;
+  altKm: number;
+}

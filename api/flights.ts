@@ -28,7 +28,7 @@ function json(body: unknown, status: number, extraHeaders: Record<string, string
   });
 }
 
-export default async function handler(_request: Request): Promise<Response> {
+export default async function handler(): Promise<Response> {
   try {
     const upstream = await fetch(STATES_URL, {
       headers: {

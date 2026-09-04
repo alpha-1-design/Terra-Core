@@ -58,12 +58,22 @@ function Carousel({
   )
   const [canScrollPrev, setCanScrollPrev] = React.useState(false)
   const [canScrollNext, setCanScrollNext] = React.useState(false)
+  const [prevApi, setPrevApi] = React.useState<CarouselApi | undefined>(undefined)
 
   const onSelect = React.useCallback((api: CarouselApi) => {
     if (!api) return
     setCanScrollPrev(api.canScrollPrev())
     setCanScrollNext(api.canScrollNext())
   }, [])
+
+  // Embla creates its instance asynchronously after mount. When it appears,
+  // seed the scroll-state from it during render (React's documented
+  // "adjust state during render" pattern) instead of an effect.
+  if (api && api !== prevApi) {
+    setPrevApi(api)
+    setCanScrollPrev(api.canScrollPrev())
+    setCanScrollNext(api.canScrollNext())
+  }
 
   const scrollPrev = React.useCallback(() => {
     api?.scrollPrev()
@@ -93,7 +103,6 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return
-    onSelect(api)
     api.on("reInit", onSelect)
     api.on("select", onSelect)
 

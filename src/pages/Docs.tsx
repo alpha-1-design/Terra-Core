@@ -15,6 +15,7 @@ const SOURCE_ROWS: [string, string, string][] = [
   ["Space weather (Kp / DST)", "NOAA SWPC", "No"],
   ["City search / geocoding", "Nominatim", "No"],
   ["Live TV index", "iptv-org", "No"],
+  ["Live CCTV cameras", "Public camera networks · always-on HLS demo feeds", "No"],
   ["World news", "GDELT (open) · GNews API · Google News RSS", "Optional key"],
 ];
 
@@ -24,6 +25,7 @@ const TOC = [
   ["architecture", "Architecture"],
   ["api-keys", "API keys"],
   ["pwa", "PWA & offline"],
+  ["android", "Android app (APK)"],
   ["troubleshooting", "Troubleshooting"],
   ["credits", "Credits"],
 ];
@@ -157,7 +159,7 @@ export default function Docs() {
               satellite imagery on a 3D demographic globe, every aircraft in
               the sky, live weather and air quality for any point, seismic
               events, space weather, the aurora oval, precipitation radar,
-              broadcast TV and a worldwide news wire.
+              broadcast TV, public live CCTV cameras and a worldwide news wire.
             </p>
             <p className="mt-3">
               Weather probes anywhere: pick any of the <b>196 embedded
@@ -236,6 +238,10 @@ export default function Docs() {
                 [
                   "PWA",
                   "Installable with an offline app shell; the live data simply waits for a connection when you are offline.",
+                ],
+                [
+                  "Android app",
+                  "Capacitor wraps the same static build into a native Android APK — one codebase, built for the Play Store or sideloading.",
                 ],
               ].map(([t, c]) => (
                 <li
@@ -332,9 +338,59 @@ export default function Docs() {
               simply wait and resume. After visiting the console online once,
               it is available offline too.
             </p>
+            <p className="mt-3">
+              Prefer a native install? The <b>Android APK</b> (below) ships the
+              same console with a fixed desktop-style viewport — no browser
+              needed.
+            </p>
           </Section>
 
-          <Section id="troubleshooting" n="06" title="Troubleshooting">
+          <Section id="android" n="06" title="Android app (APK)">
+            <p>
+              Terra-Core ships as a native Android app built with{" "}
+              <b>Capacitor</b> — the exact same static web build, wrapped in a
+              WebView with a fullscreen activity, splash screen and app icon.
+            </p>
+            <ul className="mt-3 flex list-none flex-col gap-2">
+              {[
+                "The APK is produced automatically by the build-apk GitHub Action on every push to main (debug + signed release artifacts).",
+                "The console runs in a desktop-style viewport by default on larger phones — rotate for portrait, or toggle between views at any time.",
+                "No Play Store required: install the APK directly on any Android 6+ (API 23+) device.",
+              ].map((t, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center border-2 border-ink bg-volt font-mono text-[9px] font-bold">
+                    {i + 1}
+                  </span>
+                  <span className="text-xs leading-relaxed">{t}</span>
+                </li>
+              ))}
+            </ul>
+            <h3 className="mt-4 font-sans text-sm font-bold uppercase tracking-tight">
+              Desktop view toggle
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed">
+              The APK opens with the console laid out like the desktop site (a
+              1200px-wide viewport scaled to fit). You can switch between
+              desktop and mobile viewport at any time with the in-app toggle —
+              the choice is remembered on the device.
+            </p>
+            <h3 className="mt-4 font-sans text-sm font-bold uppercase tracking-tight">
+              Building the APK yourself
+            </h3>
+            <pre className="mt-2 overflow-x-auto border-2 border-ink bg-ink p-3 font-mono text-[11px] leading-relaxed text-paper">
+              {`npm ci --legacy-peer-deps
+npm run build
+npx cap sync android
+cd android && ./gradlew assembleDebug`}
+            </pre>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              The debug APK lands at{" "}
+              <code className="font-mono text-[10px]">android/app/build/outputs/apk/debug/app-debug.apk</code>
+              .
+            </p>
+          </Section>
+
+          <Section id="troubleshooting" n="07" title="Troubleshooting">
             <ul className="flex list-none flex-col gap-3">
               {[
                 [
@@ -344,6 +400,10 @@ export default function Docs() {
                 [
                   "Some TV channels won't play",
                   "Broadcast streams are geo-blocked or offline more often than not. The panel auto-advances to the next working source, and the reference feeds always play.",
+                ],
+                [
+                  "Some CCTV cameras show offline",
+                  "Public camera feeds are frequently geo-blocked or taken down. The curated index degrades gracefully, and the two demo streams (MJPEG / HLS test feeds) always play for instant verification.",
                 ],
                 [
                   "Flight list is empty",
@@ -367,7 +427,7 @@ export default function Docs() {
             </ul>
           </Section>
 
-          <Section id="credits" n="07" title="Credits">
+          <Section id="credits" n="08" title="Credits">
             <p className="font-sans text-sm">
               <b>Terra-Core</b> is an extension of{" "}
               <a

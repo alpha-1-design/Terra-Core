@@ -7,6 +7,7 @@ import type { Country, FocusTarget, WeatherAlert } from "@/lib/monitor/types";
 import { usePolling } from "@/lib/monitor/usePolling";
 import {
   AlertTriangle,
+  ArrowLeftRight,
   Cloud,
   Droplets,
   Eye,
@@ -43,6 +44,62 @@ interface WeatherPanelProps {
   onWatchToggle: (loc: WeatherLocation) => void;
   onCountryPick: (c: Country) => void;
   onUseMyLocation: () => void;
+}
+
+/** Compact live-conditions card used for the side-by-side compare mode. */
+function MiniConditions({ loc }: { loc: WeatherLocation }) {
+  const { data } = usePolling(
+    () => fetchWeather(loc.lat, loc.lng, loc.name),
+    { enabled: true, intervalMs: 10 * 60_000 },
+  );
+  return (
+    <div className="border-2 border-ink bg-chalk p-2">
+      <div className="truncate font-sans text-[11px] font-bold uppercase leading-tight">
+        {loc.name}
+      </div>
+      {!data ? (
+        <div className="py-3 text-center font-mono text-[9px] text-muted-foreground">
+          SYNCING…
+        </div>
+      ) : (
+        <>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="text-2xl leading-none">
+              {wmoInfo(data.current.weatherCode).glyph}
+            </span>
+            <span className="font-mono text-2xl font-bold leading-none">
+              {Math.round(data.current.temperature)}°C
+            </span>
+          </div>
+          <div className="mt-1 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+            {wmoInfo(data.current.weatherCode).label}
+          </div>
+          <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono text-[9px]">
+            <span>💨 {Math.round(data.current.windSpeed)} km/h</span>
+            <span>💧 {Math.round(data.current.humidity)}%</span>
+            {data.aq.usAqi !== null && (
+              <span className="col-span-2">
+                AQI{" "}
+                <span
+                  className="px-1 font-bold text-white"
+                  style={{ background: aqiInfo(data.aq.usAqi).color }}
+                >
+                  {Math.round(data.aq.usAqi)} {aqiInfo(data.aq.usAqi).label}
+                </span>
+              </span>
+            )}
+            {data.daily.tMax[0] !== undefined && (
+              <span className="col-span-2">
+                H {Math.round(data.daily.tMax[0])}° · L{" "}
+                {Math.round(data.daily.tMin[0])}° ·☔{" "}
+                {data.daily.precipProb[0]}%
+              </span>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function WeatherPanel({
@@ -82,6 +139,10 @@ export default function WeatherPanel({
     void alerts.refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location?.lat, location?.lng]);
+
+  /* ── Compare mode: a second live location shown side-by-side ── */
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareLoc, setCompareLoc] = useState<WeatherLocation | null>(null);
 
   if (!location) {
     return (
@@ -127,6 +188,21 @@ export default function WeatherPanel({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              setCompareOpen((v) => {
+                if (v) setCompareLoc(null);
+                return !v;
+              });
+            }}
+            className={`border-2 border-ink p-1.5 transition-colors ${
+              compareOpen ? "bg-ink text-paper" : "bg-chalk hover:bg-volt/30"
+            }`}
+            title="Compare with another place"
+          >
+            <ArrowLeftRight className="size-3.5" />
+          </button>
           <button
             type="button"
             onClick={() => refresh()}
@@ -178,6 +254,50 @@ export default function WeatherPanel({
           My location
         </button>
       </div>
+
+      {/* Compare strip */}
+      {compareOpen && (
+        <div className="border-b-2 border-ink bg-muted/40 p-2">
+          <div className="flex items-center gap-2">
+            <span className="nb-label">Compare</span>
+            <span className="flex-1" />
+            {compareLoc && (
+              <button
+                type="button"
+                onClick={() => setCompareLoc(null)}
+                className="border-2 border-ink bg-chalk px-1.5 font-mono text-[9px] font-bold uppercase tracking-widest transition-colors hover:bg-alert hover:text-white"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {!compareLoc && (
+            <div className="mt-1.5">
+              <CountryPicker
+                onPick={(c) =>
+                  setCompareLoc({
+                    name: `${c.name} — ${c.capital}`,
+                    lat: c.lat,
+                    lng: c.lng,
+                  })
+                }
+              />
+            </div>
+          )}
+          {compareLoc && location && (
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              <MiniConditions
+                key={`a-${location.lat}-${location.lng}`}
+                loc={location}
+              />
+              <MiniConditions
+                key={`b-${compareLoc.lat}-${compareLoc.lng}`}
+                loc={compareLoc}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {error && error !== "no-location" && (
         <div className="border-b-2 border-ink bg-alert px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-white">

@@ -151,6 +151,7 @@ export default function TvPanel({ onIndexed }: TvPanelProps) {
   // Auto-recovery queue: country channels first, then always-on reference
   // feeds. Fatal playback errors advance to the next source automatically.
   const [pos, setPos] = useState(0);
+  const [misses, setMisses] = useState(0);
   const missesRef = useRef(0);
   const all = useMemo<TvChannel[]>(() => [...channels, ...DEMO_STREAMS], [channels]);
   const current = all[Math.min(pos, all.length - 1)] ?? DEMO_STREAMS[0] ?? null;
@@ -158,6 +159,7 @@ export default function TvPanel({ onIndexed }: TvPanelProps) {
   const handleFail = useCallback(() => {
     if (missesRef.current >= 10 || all.length <= 1) return;
     missesRef.current += 1;
+    setMisses(missesRef.current);
     setPos((p) => (p + 1) % all.length);
   }, [all.length]);
 
@@ -169,6 +171,7 @@ export default function TvPanel({ onIndexed }: TvPanelProps) {
       setChannels([]);
       setPos(0);
       missesRef.current = 0;
+      setMisses(0);
       onIndexed?.(0);
       try {
         const chs = await fetchTvChannels(country);
@@ -188,7 +191,7 @@ export default function TvPanel({ onIndexed }: TvPanelProps) {
     return () => {
       cancelled = true;
     };
-  }, [country]);
+  }, [country, onIndexed]);
 
   return (
     <div className="flex h-full flex-col">
@@ -213,9 +216,9 @@ export default function TvPanel({ onIndexed }: TvPanelProps) {
       {current && (
         <HlsPlayer src={current.url} channelName={current.name} onFail={handleFail} />
       )}
-      {missesRef.current > 0 && (
+      {misses > 0 && (
         <div className="border-b-2 border-ink bg-volt px-3 py-1 font-mono text-[9px] font-bold uppercase tracking-widest">
-          Auto-recovery · source #{missesRef.current + 1} of {all.length}…
+          Auto-recovery · source #{misses + 1} of {all.length}…
         </div>
       )}
 

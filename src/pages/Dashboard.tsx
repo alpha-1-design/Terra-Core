@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import CitySearch from "@/components/monitor/CitySearch";
 import GlobeView from "@/components/monitor/GlobeView";
 import MapView from "@/components/monitor/MapView";
@@ -9,12 +10,23 @@ import NewsPanel from "@/components/monitor/panels/NewsPanel";
 import TvPanel from "@/components/monitor/panels/TvPanel";
 import WatchlistPanel from "@/components/monitor/panels/WatchlistPanel";
 import CctvPanel from "@/components/monitor/panels/CctvPanel";
+import RadioPanel from "@/components/monitor/panels/RadioPanel";
+import CommandPalette from "@/components/monitor/CommandPalette";
+import { useEventAlerts } from "@/lib/monitor/useEventAlerts";
+import { useOtaUpdate } from "@/lib/monitor/useOtaUpdate";
+import { openReleasePage } from "@/lib/monitor/ota";
+import {
+  isSoundEnabled,
+  playUiBlip,
+  setSoundEnabled,
+} from "@/lib/monitor/sound";
 import WeatherPanel, {
   type WeatherLocation,
 } from "@/components/monitor/panels/WeatherPanel";
 import { fetchAurora, AURORA_POLL_MS } from "@/lib/monitor/api/aurora";
 import { fetchCctvStreams, CCTV_POLL_MS } from "@/lib/monitor/api/cctv";
 import { fetchFlights, FLIGHT_POLL_MS } from "@/lib/monitor/api/flights";
+import { fetchSatellites, SAT_POLL_MS } from "@/lib/monitor/api/satellites";
 import { reverseGeocode } from "@/lib/monitor/api/geocode";
 import {
   fetchIss,
@@ -22,6 +34,7 @@ import {
   fetchSpaceWeather,
 } from "@/lib/monitor/api/events";
 import { fetchNewsFeed, NEWS_POLL_MS } from "@/lib/monitor/api/news";
+import { latestFireDate } from "@/lib/monitor/api/fires";
 import { fetchRadarFrames } from "@/lib/monitor/api/radar";
 import {
   fetchPopulatedPlaces,
@@ -36,7 +49,16 @@ import type {
 import { usePolling } from "@/lib/monitor/usePolling";
 import { useWatchlist } from "@/lib/monitor/watchlist";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HardDrive, Radio } from "lucide-react";
+import {
+  Bell,
+  Flame,
+  HardDrive,
+  MonitorSmartphone,
+  Radio,
+  Satellite,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -46,8 +68,13 @@ export default function Dashboard() {
   const watchlist = useWatchlist();
 
   /* ── Live data streams ─────────────────────────────── */
+  const [satsEnabled, setSatsEnabled] = useState(false);
   const flights = usePolling(fetchFlights, { intervalMs: FLIGHT_POLL_MS });
   const cctv = usePolling(fetchCctvStreams, { intervalMs: CCTV_POLL_MS });
+  const sats = usePolling(fetchSatellites, {
+    enabled: satsEnabled,
+    intervalMs: SAT_POLL_MS,
+  });
   const quakes = usePolling(fetchQuakes, { intervalMs: 60_000 });
   const iss = usePolling(fetchIss, { intervalMs: 10_000 });
   const space = usePolling(fetchSpaceWeather, { intervalMs: 5 * 60_000 });
@@ -58,13 +85,16 @@ export default function Dashboard() {
   const newsFetcher = useCallback(() => fetchNewsFeed(newsRegion), [newsRegion]);
   const news = usePolling(newsFetcher, { intervalMs: NEWS_POLL_MS });
   // Refetch immediately when the operator switches news region.
+  // Refetch news immediately when the region changes (the polling cadence
+  // would otherwise be too slow). The guard makes the extra `news` dependency
+  // a no-op on poll updates — it only acts when the region actually changes.
   const prevNewsRegion = useRef(newsRegion);
   useEffect(() => {
     if (prevNewsRegion.current !== newsRegion) {
       prevNewsRegion.current = newsRegion;
       void news.refresh();
     }
-  }, [newsRegion, news.refresh]);
+  }, [newsRegion, news]);
 
   const [cityCount, setCityCount] = useState(0);
   useEffect(() => {
@@ -77,10 +107,69 @@ export default function Dashboard() {
   const [imagery, setImagery] = useState<ImageryMode>("day");
   const [baseLayer, setBaseLayer] = useState<"streets" | "satellite">("satellite");
   const [radarEnabled, setRadarEnabled] = useState(true);
+  const [firesEnabled, setFiresEnabled] = useState(true);
+  const firesDate = latestFireDate();
   const [auroraEnabled, setAuroraEnabled] = useState(true);
   const [focus, setFocus] = useState<FocusTarget | null>(null);
   const [tab, setTab] = useState("flights");
   const [tvIndexed, setTvIndexed] = useState(0);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  /* In the Android app: "desktop site" viewport toggle (like a browser). */
+  const isNative = Capacitor.isNativePlatform();
+  const [desktopView, setDesktopView] = useState(() => {
+    try {
+      return (
+        document
+          .getElementById("viewport-meta")
+          ?.getAttribute("content")
+          ?.includes("width=1200") ?? false
+      );
+    } catch {
+      return false;
+    }
+  });
+  const handleDesktopToggle = () => {
+    (window as unknown as { toggleDesktopView?: () => void })
+      .toggleDesktopView?.();
+    setDesktopView((v) => !v);
+  };
+
+  /* ── Alerts: big quakes + ISS flyovers over the watchlist ── */
+  const alerts = useEventAlerts({
+    quakes: quakes.data,
+    iss: iss.data,
+    watch: watchlist.items.map((w) => ({
+      id: w.id,
+      name: w.name,
+      lat: w.lat,
+      lng: w.lng,
+    })),
+  });
+  const alertTotal = alerts.counts.quakeCount + alerts.counts.flyoverCount;
+
+  /* ── OTA: native updates from GitHub Releases ── */
+  const ota = useOtaUpdate();
+
+  const handleSoundToggle = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    setSoundEnabled(next);
+    if (next) playUiBlip();
+  };
+
+  const handleAlertBell = () => {
+    if (alerts.enabled) {
+      alerts.disable();
+      toast.info("Alerts muted");
+      return;
+    }
+    void alerts.enable().then((ok) => {
+      if (ok) toast.success("Alerts on — big quakes + ISS flyovers");
+      else toast.info("Notifications are blocked by the browser");
+    });
+  };
   /* Mission default probe point — replaced the moment a real location is
      chosen (search, globe, country picker, or geolocation). */
   const [weatherLoc, setWeatherLoc] = useState<WeatherLocation>({
@@ -226,6 +315,64 @@ export default function Dashboard() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {isNative && (
+            <button
+              type="button"
+              onClick={handleDesktopToggle}
+              className={`flex items-center gap-1 border-2 border-ink px-2 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest transition-colors ${
+                desktopView ? "bg-ink text-paper" : "bg-chalk hover:bg-volt/30"
+              }`}
+              title={
+                desktopView
+                  ? "Desktop layout — tap for mobile layout"
+                  : "Mobile layout — tap for desktop site"
+              }
+            >
+              <MonitorSmartphone className="size-3.5" />
+              {desktopView ? "Desktop" : "Mobile"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="border-2 border-ink bg-chalk px-2 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest transition-colors hover:bg-volt/30"
+            title="Command palette (⌘K)"
+          >
+            ⌘K
+          </button>
+          <button
+            type="button"
+            onClick={handleSoundToggle}
+            className={`border-2 border-ink p-1.5 transition-colors ${
+              soundOn ? "bg-volt" : "bg-chalk hover:bg-volt/30"
+            }`}
+            title={soundOn ? "Mute event sounds" : "Enable event sounds"}
+          >
+            {soundOn ? (
+              <Volume2 className="size-3.5" />
+            ) : (
+              <VolumeX className="size-3.5" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleAlertBell}
+            className={`relative border-2 border-ink p-1.5 transition-colors ${
+              alerts.enabled ? "bg-cobalt text-white" : "bg-chalk hover:bg-cobalt/20"
+            }`}
+            title={
+              alerts.enabled
+                ? "Alerts on — click to mute"
+                : "Enable quake + ISS flyover alerts"
+            }
+          >
+            <Bell className="size-3.5" />
+            {alertTotal > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border border-ink bg-alert px-0.5 font-mono text-[8px] font-bold text-white">
+                {alertTotal}
+              </span>
+            )}
+          </button>
           <span className="nb-chip border-verdant text-verdant">
             <Radio className="size-3 blink-dot" /> Live
           </span>
@@ -235,6 +382,34 @@ export default function Dashboard() {
           </span>
         </div>
       </header>
+
+      {/* ── Native update banner (APK-only, from GitHub Releases) ── */}
+      {ota.isNative && ota.update && (
+        <div className="flex flex-wrap items-center gap-2 border-b-2 border-ink bg-volt/30 px-3 py-1.5">
+          <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-widest">
+            <Satellite className="size-3" /> Native update {ota.update.tag} available
+          </span>
+          <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+            {ota.currentVersion ? `Installed ${ota.currentVersion} · ` : ""}app shell change
+          </span>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => void openReleasePage(ota.update!.htmlUrl)}
+            className="border-2 border-ink bg-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest text-paper transition-colors hover:bg-cobalt"
+          >
+            Download APK
+          </button>
+          <button
+            type="button"
+            onClick={() => ota.dismiss(ota.update!.tag)}
+            className="border-2 border-ink bg-chalk px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-colors hover:bg-alert hover:text-white"
+            title="Hide until the next release"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* ── Live event ticker ──────────────────────────── */}
       <Ticker
@@ -256,6 +431,7 @@ export default function Dashboard() {
             iss={iss.data}
             aurora={aurora.data}
             auroraEnabled={auroraEnabled}
+            satellites={sats.data ?? []}
             focus={focus}
             onSelectPoint={handleGlobePoint}
           />
@@ -286,6 +462,19 @@ export default function Dashboard() {
               }`}
             >
               Aurora {auroraEnabled ? "On" : "Off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSatsEnabled((v) => !v)}
+              className={`flex items-center gap-1 border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
+                satsEnabled
+                  ? "bg-cobalt text-white shadow-[2px_2px_0_0_#141414]"
+                  : "bg-chalk hover:bg-cobalt/20"
+              }`}
+              title="Live satellite positions (TLE) · needs the Vercel proxy"
+            >
+              <Satellite className="size-3" />
+              Sats {satsEnabled ? "On" : "Off"}
             </button>
           </div>
 
@@ -326,6 +515,8 @@ export default function Dashboard() {
               baseLayer={baseLayer}
               radar={radar.data}
               radarEnabled={radarEnabled}
+              firesDate={firesDate}
+              firesEnabled={firesEnabled}
               flights={flights.data ?? []}
               quakes={quakes.data ?? []}
               iss={iss.data}
@@ -354,17 +545,31 @@ export default function Dashboard() {
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => setRadarEnabled((v) => !v)}
-              className={`absolute right-2 top-2 z-[1000] border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
-                radarEnabled
-                  ? "bg-verdant text-white shadow-[2px_2px_0_0_#141414]"
-                  : "bg-chalk hover:bg-volt/30"
-              }`}
-            >
-              Radar {radarEnabled ? "On" : "Off"}
-            </button>
+            <div className="absolute right-2 top-2 z-[1000] flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => setRadarEnabled((v) => !v)}
+                className={`flex items-center gap-1 border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
+                  radarEnabled
+                    ? "bg-verdant text-white shadow-[2px_2px_0_0_#141414]"
+                    : "bg-chalk hover:bg-volt/30"
+                }`}
+              >
+                <Satellite className="size-3" /> Radar {radarEnabled ? "On" : "Off"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiresEnabled((v) => !v)}
+                className={`flex items-center gap-1 border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
+                  firesEnabled
+                    ? "bg-alert text-white shadow-[2px_2px_0_0_#141414]"
+                    : "bg-chalk hover:bg-alert/20"
+                }`}
+                title="Live wildfire heat · NASA GOES (Americas)"
+              >
+                <Flame className="size-3" /> Fires {firesEnabled ? "On" : "Off"}
+              </button>
+            </div>
           </div>
 
           {/* Panels */}
@@ -380,6 +585,7 @@ export default function Dashboard() {
                 ["weather", "Weather"],
                 ["tv", "TV"],
                 ["cctv", "CCTV"],
+                ["radio", "Radio"],
                 ["news", "News"],
                 ["watch", "Watch"],
               ].map(([id, label]) => (
@@ -429,6 +635,10 @@ export default function Dashboard() {
 
             <TabsContent value="cctv" className="min-h-0 flex-1">
               <CctvPanel streams={cctv.data ?? []} />
+            </TabsContent>
+
+            <TabsContent value="radio" className="min-h-0 flex-1">
+              <RadioPanel />
             </TabsContent>
 
             <TabsContent value="news" className="min-h-0 flex-1">
@@ -486,6 +696,15 @@ export default function Dashboard() {
         cityCount={cityCount}
         tvCount={tvIndexed + DEMO_STREAMS.length + (cctv.data?.length ?? 0)}
         news={news.data}
+      />
+
+      {/* ── Command palette (⌘K) ──────────────────────── */}
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        onSelectTab={setTab}
+        onSelectCountry={handleCountryPick}
+        onNavigate={(to) => navigate(to)}
       />
     </div>
   );

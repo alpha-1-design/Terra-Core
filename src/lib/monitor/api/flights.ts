@@ -57,7 +57,7 @@ export async function fetchFlights(): Promise<Flight[]> {
       throw new Error("Flights proxy: unexpected payload");
     }
     return parseStates(json);
-  } catch (err) {
+  } catch {
     // Fall back to the direct OpenSky endpoint.
     const res = await fetch(STATES_URL, { cache: "no-store" });
     if (res.status === 429) {

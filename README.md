@@ -3,7 +3,9 @@
 A real-time, client-side monitoring console for planet Earth. Satellite
 imagery, live aircraft, seismic events, the ISS, weather + air quality,
 precipitation radar, space weather, the aurora oval, the day/night terminator,
-and live TV — all rendered on a real 3D demographic globe.
+live TV, and public CCTV cameras — all rendered on a real 3D demographic
+globe. Ships as a static web app, an installable PWA, and a native Android
+APK.
 
 **100% client-side. No backend, no database, no sign-in.** Every layer is
 pulled directly from free public feeds in the browser. Your watchlist is
@@ -16,8 +18,10 @@ persisted in `localStorage`, so the entire app runs as a static site.
 - Tailwind CSS v4 + shadcn/ui
 - globe.gl (WebGL 3D globe) + Leaflet (2D map)
 - Framer Motion, Recharts, hls.js
+- Capacitor (native Android APK)
 
-Use `bun` as the package manager.
+Use `bun` as the package manager (or `npm ci --legacy-peer-deps` — the CI
+and APK workflow use npm).
 
 ## Data sources
 
@@ -32,6 +36,10 @@ Use `bun` as the package manager.
 | Aurora oval | NOAA OVATION Prime |
 | Space weather (Kp / DST) | NOAA SWPC |
 | Live TV | Publicly available IPTV streams |
+| Live CCTV cameras | NASA TV mission feed + always-on HLS reference streams |
+| Live wildfire heat | NASA GIBS GOES-East / GOES-West ABI Fire Temperature (Americas) |
+| Live satellite positions | Celestrak TLEs, orbit-propagated (proxied via `api/satellites.ts`) |
+| Internet radio | radio-browser.info (community directory) |
 | World news | GDELT Project (open, proxied) · GNews API (keyed) · Google News RSS (keyless fallback) |
 | Satellite imagery / country shapes | ESRI World Imagery / Natural Earth |
 
@@ -47,12 +55,68 @@ bun install
 bun run dev
 ```
 
+## Console extras
+
+- **⌘K command palette** — jump to any panel, page or country instantly
+- **Operator alerts** — Web notifications (and Capacitor local notifications
+  in the APK) for quakes ≥ M5.5 and ISS flyovers over watchlisted places
+- **Event sonification** — WebAudio cues for new quakes / ISS alerts (toggle
+  in the console header)
+- **CCTV patrol mode + picture-in-picture** — auto-cycle cameras, or detach
+  the player into a floating window
+- **Weather compare** — live conditions for two places side by side
+- **Fire / satellite map-globe toggles** — GOES fire-temperature overlay on
+  the map; live-propagated satellite swarm on the globe (needs the Vercel
+  proxy for Celestrak CORS)
+
+## Android APK (Capacitor)
+
+Terra-Core also ships as a **native Android app** built with Capacitor — a
+fullscreen activity + splash + app icon around the hosted frontend.
+
+**Live-shell model (install once, always current):** the app is a thin
+WebView that loads the hosted site from Vercel
+(`server.url` in `capacitor.config.ts`). Users install the APK once and get
+whatever the website shows that day — pushes to `main` update the site, and
+the app follows automatically. No APK reinstalls when the frontend changes.
+As a bonus, relative `/api/*` proxy calls (flights, news, satellites)
+resolve to the same Vercel origin, so proxied feeds work inside the app too.
+The trade-off is that live data requires a connection.
+
+- `android/` — generated Capacitor project (`appId com.terra.core`)
+- `.github/workflows/build-apk.yml` — builds **debug + signed release APKs**
+  on every push to `main` (and on `v*.*.*` tags), uploading both as
+  artifacts and attaching them to tag releases
+- The app opens in a **desktop-style viewport** (1200px-wide, scaled to fit)
+  for the full globe + side-panel layout on phones; a **Desktop/Mobile**
+  toggle in the console header switches layouts like a browser's
+  "desktop site" and remembers the choice per device
+- Rebuild the shell only when the native wrapper changes (e.g. new
+  Capacitor plugin, a new app icon, or a moved Vercel domain)
+
+Build the APK yourself:
+
+```bash
+npm ci --legacy-peer-deps
+npm run build
+npx cap sync android
+cd android && ./gradlew assembleDebug
+```
+
+The debug APK lands at
+`android/app/build/outputs/apk/debug/app-debug.apk` (Android 6+ / API 23+).
+
+> Keep all `@capacitor/*` packages on the **same major version** (currently
+> v7, matching the committed `android/` template). Mixing CLI 7 with
+> core/android 8 breaks the Gradle build with a `compileSdk` mismatch.
+
 ## PWA (installable + offline shell)
 
 Terra-Core is a PWA: install it from the browser (desktop: the address-bar
 install icon; mobile: Add to Home Screen) and it opens fullscreen with its own
 icon. The app shell is precached, so the console loads offline — live data
-feeds simply wait for a connection.
+feeds simply wait for a connection. (Prefer native? Install the Android APK
+above.)
 
 - `public/manifest.webmanifest` — install metadata (branding, colors, icons)
 - `public/sw.js` — hand-rolled service worker (no workbox). It precaches the
@@ -156,7 +220,8 @@ Alpha-1 ecosystem.
 ## Project layout
 
 - `src/pages/` — `Landing`, `Dashboard`, `Docs`, `Faq`, `NotFound`
-- `src/components/monitor/` — globe, map, ticker, status bar, panels
+- `src/components/monitor/` — globe, map, ticker, status bar, panels (incl. `CctvPanel`)
+- `android/` — Capacitor Android project (APK builds)
 - `src/lib/monitor/api/` — one module per live data feed
 - `src/lib/monitor/watchlist.ts` — localStorage watchlist store
 - `api/` — Vercel serverless functions (keyed integrations, e.g. `api/news.ts`)

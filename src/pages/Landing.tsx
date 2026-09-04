@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import {
   Activity,
   ArrowRight,
+  Cctv,
   CloudLightning,
   Crosshair,
   Globe2,
@@ -11,6 +12,7 @@ import {
   Satellite,
   Search,
   Signal,
+  Smartphone,
   Tv,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -125,6 +127,14 @@ const FEATURES = [
     copy: "Animated weather-radar overlay from RainViewer on top of OSM streets or full-res satellite maps of any city on Earth.",
     source: "RainViewer · OSM · Esri",
   },
+  {
+    n: "07",
+    color: "#7c3aed",
+    icon: Cctv,
+    title: "Live CCTV Cameras",
+    copy: "Public live cameras from cities around the world pinned straight onto the globe — plus always-on reference streams for instant playback in the console.",
+    source: "Public camera networks",
+  },
 ];
 
 const SOURCES = [
@@ -141,6 +151,7 @@ const SOURCES = [
   "GDELT",
   "GNews",
   "Google News",
+  "Public CCTV feeds",
 ];
 
 const MARQUEE = [
@@ -150,8 +161,10 @@ const MARQUEE = [
   "SEISMIC EVENT FEED",
   "SPACE WEATHER",
   "GLOBAL TV INDEX",
+  "LIVE CCTV CAMERAS",
   "PRECIPITATION RADAR",
   "WORLD NEWS WIRE",
+  "ANDROID APK READY",
   "ANY CITY ON EARTH",
 ];
 
@@ -175,6 +188,7 @@ export default function Landing() {
     "[OVATION] aurora oval · computed from SWPC forecast",
     "[RADAR] 24 frames buffered · animating",
     "[TV] 18 broadcast markets indexed",
+    "[CCTV] public cameras pinned to the globe · live in the console",
     "[NEWS] world headlines · open GDELT / keyed GNews / public RSS",
   ];
 
@@ -243,11 +257,10 @@ export default function Landing() {
             </h1>
 
             <p className="mt-6 max-w-xl font-sans text-base leading-relaxed text-ink-soft sm:text-lg">
-              A real-time command console over the entire Earth — satellite
-              imagery, every aircraft in the sky, weather and air quality,
-              seismic events, space weather, live TV and precipitation radar —
-              all rendered on a real 3D demographic globe. Zoom to any country
-              or city. Go anywhere, virtually.
+              A real-time command console over the entire Earth —              satellite imagery, every aircraft in the sky, weather and air quality,
+              seismic events, space weather, live TV, public CCTV cameras and
+              precipitation radar — all rendered on a real 3D demographic globe.
+              Zoom to any country or city. Go anywhere, virtually.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -446,9 +459,14 @@ export default function Landing() {
       {/* ── CTA ────────────────────────────────────────── */}
       <section className="border-t-2 border-ink bg-ink">
         <div className="mx-auto max-w-5xl px-4 py-20 text-center lg:px-8">
-          <span className="nb-chip border-signal bg-signal text-white">
-            <MonitorPlay className="size-3" /> Free · No sign-in required
-          </span>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span className="nb-chip border-signal bg-signal text-white">
+              <MonitorPlay className="size-3" /> Free · No sign-in required
+            </span>
+            <span className="nb-chip border-cobalt bg-cobalt text-white">
+              <Smartphone className="size-3" /> Android APK
+            </span>
+          </div>
           <h2 className="mt-6 font-sans text-4xl font-bold uppercase leading-[0.95] tracking-tight text-paper sm:text-6xl">
             The most advanced monitoring system
             <span className="text-volt"> in the universe.</span>
