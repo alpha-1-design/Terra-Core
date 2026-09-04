@@ -1,17 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import CitySearch from "@/components/monitor/CitySearch";
-import GlobeView from "@/components/monitor/GlobeView";
-import MapView from "@/components/monitor/MapView";
 import StatusBar from "@/components/monitor/StatusBar";
 import Ticker from "@/components/monitor/Ticker";
-import EventsPanel from "@/components/monitor/panels/EventsPanel";
-import FlightsPanel from "@/components/monitor/panels/FlightsPanel";
-import NewsPanel from "@/components/monitor/panels/NewsPanel";
-import TvPanel from "@/components/monitor/panels/TvPanel";
-import WatchlistPanel from "@/components/monitor/panels/WatchlistPanel";
-import CctvPanel from "@/components/monitor/panels/CctvPanel";
-import RadioPanel from "@/components/monitor/panels/RadioPanel";
-import CommandPalette from "@/components/monitor/CommandPalette";
 import { useEventAlerts } from "@/lib/monitor/useEventAlerts";
 import { useOtaUpdate } from "@/lib/monitor/useOtaUpdate";
 import { openReleasePage } from "@/lib/monitor/ota";
@@ -20,8 +10,8 @@ import {
   playUiBlip,
   setSoundEnabled,
 } from "@/lib/monitor/sound";
-import WeatherPanel, {
-  type WeatherLocation,
+import type {
+  WeatherLocation,
 } from "@/components/monitor/panels/WeatherPanel";
 import { fetchAurora, AURORA_POLL_MS } from "@/lib/monitor/api/aurora";
 import { fetchCctvStreams, CCTV_POLL_MS } from "@/lib/monitor/api/cctv";
@@ -59,9 +49,47 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
+
+/*
+ * These are the heaviest dependencies in the app by a wide margin
+ * (globe.gl + three ~90MB unpacked, leaflet, recharts) — statically
+ * importing them all here was what made the Dashboard route ship as one
+ * ~3.3MB/960KB-gzip chunk, which is why tapping "Launch Console" had a
+ * long, blank-looking delay before anything appeared, especially on a
+ * slow connection. Splitting each into its own lazy chunk means:
+ *   - the Dashboard shell (header, tabs, layout) downloads and becomes
+ *     interactive almost immediately:
+ *   - the globe and map load in parallel, in their own chunks, instead of
+ *     blocking the whole page behind one giant bundle; and
+ *   - inactive tab panels (TV, CCTV, Radio, News, Watch, Events) never
+ *     download at all until the operator actually clicks that tab.
+ */
+const GlobeView = lazy(() => import("@/components/monitor/GlobeView"));
+const MapView = lazy(() => import("@/components/monitor/MapView"));
+const CommandPalette = lazy(() => import("@/components/monitor/CommandPalette"));
+const FlightsPanel = lazy(() => import("@/components/monitor/panels/FlightsPanel"));
+const EventsPanel = lazy(() => import("@/components/monitor/panels/EventsPanel"));
+const WeatherPanel = lazy(() => import("@/components/monitor/panels/WeatherPanel"));
+const TvPanel = lazy(() => import("@/components/monitor/panels/TvPanel"));
+const CctvPanel = lazy(() => import("@/components/monitor/panels/CctvPanel"));
+const RadioPanel = lazy(() => import("@/components/monitor/panels/RadioPanel"));
+const NewsPanel = lazy(() => import("@/components/monitor/panels/NewsPanel"));
+const WatchlistPanel = lazy(() => import("@/components/monitor/panels/WatchlistPanel"));
+
+/* Lightweight, non-blocking placeholders — shown only for the split-off
+   chunk's own brief load time, not the whole page. */
+function PaneLoading({ label }: { label: string }) {
+  return (
+    <div className="flex h-full min-h-[160px] w-full items-center justify-center bg-chalk">
+      <span className="animate-pulse font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+        Loading {label}…
+      </span>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -424,17 +452,19 @@ export default function Dashboard() {
       <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* 3D globe */}
         <section className="relative h-[52vh] min-h-[360px] overflow-hidden border-b-2 border-ink lg:h-auto lg:min-h-0 lg:flex-1 lg:border-b-0 lg:border-r-2">
-          <GlobeView
-            imagery={imagery}
-            flights={flights.data ?? []}
-            quakes={quakes.data ?? []}
-            iss={iss.data}
-            aurora={aurora.data}
-            auroraEnabled={auroraEnabled}
-            satellites={sats.data ?? []}
-            focus={focus}
-            onSelectPoint={handleGlobePoint}
-          />
+          <Suspense fallback={<PaneLoading label="globe" />}>
+            <GlobeView
+              imagery={imagery}
+              flights={flights.data ?? []}
+              quakes={quakes.data ?? []}
+              iss={iss.data}
+              aurora={aurora.data}
+              auroraEnabled={auroraEnabled}
+              satellites={sats.data ?? []}
+              focus={focus}
+              onSelectPoint={handleGlobePoint}
+            />
+          </Suspense>
 
           {/* Imagery + aurora toggles */}
           <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1">
@@ -511,24 +541,26 @@ export default function Dashboard() {
         {/* Right column: map + panels */}
         <aside className="flex w-full shrink-0 flex-col lg:w-[420px]">
           <div className="relative h-[260px] shrink-0 border-b-2 border-ink">
-            <MapView
-              baseLayer={baseLayer}
-              radar={radar.data}
-              radarEnabled={radarEnabled}
-              firesDate={firesDate}
-              firesEnabled={firesEnabled}
-              flights={flights.data ?? []}
-              quakes={quakes.data ?? []}
-              iss={iss.data}
-              watch={watchlist.items.map((w) => ({
-                id: w.id,
-                name: w.name,
-                lat: w.lat,
-                lng: w.lng,
-              }))}
-              focus={focus}
-              onFocus={handleFocus}
-            />
+            <Suspense fallback={<PaneLoading label="map" />}>
+              <MapView
+                baseLayer={baseLayer}
+                radar={radar.data}
+                radarEnabled={radarEnabled}
+                firesDate={firesDate}
+                firesEnabled={firesEnabled}
+                flights={flights.data ?? []}
+                quakes={quakes.data ?? []}
+                iss={iss.data}
+                watch={watchlist.items.map((w) => ({
+                  id: w.id,
+                  name: w.name,
+                  lat: w.lat,
+                  lng: w.lng,
+                }))}
+                focus={focus}
+                onFocus={handleFocus}
+              />
+            </Suspense>
             <div className="absolute left-2 top-2 z-[1000] flex gap-1">
               {(["satellite", "streets"] as const).map((b) => (
                 <button
@@ -600,60 +632,76 @@ export default function Dashboard() {
             </TabsList>
 
             <TabsContent value="flights" className="min-h-0 flex-1">
-              <FlightsPanel
-                flights={flights.data ?? []}
-                error={flights.error}
-                updatedAt={flights.updatedAt}
-                loading={flights.loading}
-                onFocus={handleFocus}
-              />
+              <Suspense fallback={<PaneLoading label="flights" />}>
+                <FlightsPanel
+                  flights={flights.data ?? []}
+                  error={flights.error}
+                  updatedAt={flights.updatedAt}
+                  loading={flights.loading}
+                  onFocus={handleFocus}
+                />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="events" className="min-h-0 flex-1">
-              <EventsPanel
-                quakes={quakes.data ?? []}
-                iss={iss.data}
-                space={space.data ?? { kp: null, kpTime: null, dst: null, dstTime: null }}
-                onFocus={handleFocus}
-              />
+              <Suspense fallback={<PaneLoading label="events" />}>
+                <EventsPanel
+                  quakes={quakes.data ?? []}
+                  iss={iss.data}
+                  space={space.data ?? { kp: null, kpTime: null, dst: null, dstTime: null }}
+                  onFocus={handleFocus}
+                />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="weather" className="min-h-0 flex-1">
-              <WeatherPanel
-                location={weatherLoc}
-                isWatched={isWatched}
-                onFocus={handleFocus}
-                onWatchToggle={handleWatchToggle}
-                onCountryPick={handleCountryPick}
-                onUseMyLocation={handleUseMyLocation}
-              />
+              <Suspense fallback={<PaneLoading label="weather" />}>
+                <WeatherPanel
+                  location={weatherLoc}
+                  isWatched={isWatched}
+                  onFocus={handleFocus}
+                  onWatchToggle={handleWatchToggle}
+                  onCountryPick={handleCountryPick}
+                  onUseMyLocation={handleUseMyLocation}
+                />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="tv" className="min-h-0 flex-1">
-              <TvPanel onIndexed={setTvIndexed} />
+              <Suspense fallback={<PaneLoading label="tv" />}>
+                <TvPanel onIndexed={setTvIndexed} />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="cctv" className="min-h-0 flex-1">
-              <CctvPanel streams={cctv.data ?? []} />
+              <Suspense fallback={<PaneLoading label="cctv" />}>
+                <CctvPanel streams={cctv.data ?? []} />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="radio" className="min-h-0 flex-1">
-              <RadioPanel />
+              <Suspense fallback={<PaneLoading label="radio" />}>
+                <RadioPanel />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="news" className="min-h-0 flex-1">
-              <NewsPanel
-                region={newsRegion}
-                onRegionChange={setNewsRegion}
-                feed={news.data}
-                loading={news.loading}
-                error={news.error}
-                updatedAt={news.updatedAt}
-              />
+              <Suspense fallback={<PaneLoading label="news" />}>
+                <NewsPanel
+                  region={newsRegion}
+                  onRegionChange={setNewsRegion}
+                  feed={news.data}
+                  loading={news.loading}
+                  error={news.error}
+                  updatedAt={news.updatedAt}
+                />
+              </Suspense>
             </TabsContent>
 
             <TabsContent value="watch" className="min-h-0 flex-1">
-              <WatchlistPanel onFocus={handleFocus} />
+              <Suspense fallback={<PaneLoading label="watchlist" />}>
+                <WatchlistPanel onFocus={handleFocus} />
+              </Suspense>
             </TabsContent>
           </Tabs>
         </aside>
@@ -699,13 +747,15 @@ export default function Dashboard() {
       />
 
       {/* ── Command palette (⌘K) ──────────────────────── */}
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        onSelectTab={setTab}
-        onSelectCountry={handleCountryPick}
-        onNavigate={(to) => navigate(to)}
-      />
+      <Suspense fallback={null}>
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          onSelectTab={setTab}
+          onSelectCountry={handleCountryPick}
+          onNavigate={(to) => navigate(to)}
+        />
+      </Suspense>
     </div>
   );
 }
