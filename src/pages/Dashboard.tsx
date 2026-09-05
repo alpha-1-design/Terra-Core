@@ -49,9 +49,11 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import { lazyWithRetry } from "@/lib/monitor/lazyWithRetry";
+import ChunkErrorBoundary from "@/components/monitor/ChunkErrorBoundary";
 
 /*
  * These are the heaviest dependencies in the app by a wide margin
@@ -61,23 +63,29 @@ import { toast } from "sonner";
  * long, blank-looking delay before anything appeared, especially on a
  * slow connection. Splitting each into its own lazy chunk means:
  *   - the Dashboard shell (header, tabs, layout) downloads and becomes
- *     interactive almost immediately:
+ *     interactive almost immediately;
  *   - the globe and map load in parallel, in their own chunks, instead of
  *     blocking the whole page behind one giant bundle; and
  *   - inactive tab panels (TV, CCTV, Radio, News, Watch, Events) never
  *     download at all until the operator actually clicks that tab.
+ *
+ * lazyWithRetry + ChunkErrorBoundary (below) exist because splitting into
+ * separate network requests means any one of them can now fail on its own
+ * (stale hash after a redeploy, or a dropped request on a slow/flaky
+ * connection) — without them that failure crashed the whole dashboard
+ * instead of just the one piece that couldn't load.
  */
-const GlobeView = lazy(() => import("@/components/monitor/GlobeView"));
-const MapView = lazy(() => import("@/components/monitor/MapView"));
-const CommandPalette = lazy(() => import("@/components/monitor/CommandPalette"));
-const FlightsPanel = lazy(() => import("@/components/monitor/panels/FlightsPanel"));
-const EventsPanel = lazy(() => import("@/components/monitor/panels/EventsPanel"));
-const WeatherPanel = lazy(() => import("@/components/monitor/panels/WeatherPanel"));
-const TvPanel = lazy(() => import("@/components/monitor/panels/TvPanel"));
-const CctvPanel = lazy(() => import("@/components/monitor/panels/CctvPanel"));
-const RadioPanel = lazy(() => import("@/components/monitor/panels/RadioPanel"));
-const NewsPanel = lazy(() => import("@/components/monitor/panels/NewsPanel"));
-const WatchlistPanel = lazy(() => import("@/components/monitor/panels/WatchlistPanel"));
+const GlobeView = lazyWithRetry(() => import("@/components/monitor/GlobeView"), "globe");
+const MapView = lazyWithRetry(() => import("@/components/monitor/MapView"), "map");
+const CommandPalette = lazyWithRetry(() => import("@/components/monitor/CommandPalette"), "palette");
+const FlightsPanel = lazyWithRetry(() => import("@/components/monitor/panels/FlightsPanel"), "flights");
+const EventsPanel = lazyWithRetry(() => import("@/components/monitor/panels/EventsPanel"), "events");
+const WeatherPanel = lazyWithRetry(() => import("@/components/monitor/panels/WeatherPanel"), "weather");
+const TvPanel = lazyWithRetry(() => import("@/components/monitor/panels/TvPanel"), "tv");
+const CctvPanel = lazyWithRetry(() => import("@/components/monitor/panels/CctvPanel"), "cctv");
+const RadioPanel = lazyWithRetry(() => import("@/components/monitor/panels/RadioPanel"), "radio");
+const NewsPanel = lazyWithRetry(() => import("@/components/monitor/panels/NewsPanel"), "news");
+const WatchlistPanel = lazyWithRetry(() => import("@/components/monitor/panels/WatchlistPanel"), "watchlist");
 
 /* Lightweight, non-blocking placeholders — shown only for the split-off
    chunk's own brief load time, not the whole page. */
@@ -452,19 +460,21 @@ export default function Dashboard() {
       <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* 3D globe */}
         <section className="relative h-[52vh] min-h-[360px] overflow-hidden border-b-2 border-ink lg:h-auto lg:min-h-0 lg:flex-1 lg:border-b-0 lg:border-r-2">
-          <Suspense fallback={<PaneLoading label="globe" />}>
-            <GlobeView
-              imagery={imagery}
-              flights={flights.data ?? []}
-              quakes={quakes.data ?? []}
-              iss={iss.data}
-              aurora={aurora.data}
-              auroraEnabled={auroraEnabled}
-              satellites={sats.data ?? []}
-              focus={focus}
-              onSelectPoint={handleGlobePoint}
-            />
-          </Suspense>
+          <ChunkErrorBoundary label="globe">
+            <Suspense fallback={<PaneLoading label="globe" />}>
+              <GlobeView
+                imagery={imagery}
+                flights={flights.data ?? []}
+                quakes={quakes.data ?? []}
+                iss={iss.data}
+                aurora={aurora.data}
+                auroraEnabled={auroraEnabled}
+                satellites={sats.data ?? []}
+                focus={focus}
+                onSelectPoint={handleGlobePoint}
+              />
+            </Suspense>
+          </ChunkErrorBoundary>
 
           {/* Imagery + aurora toggles */}
           <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1">
@@ -541,26 +551,28 @@ export default function Dashboard() {
         {/* Right column: map + panels */}
         <aside className="flex w-full shrink-0 flex-col lg:w-[420px]">
           <div className="relative h-[260px] shrink-0 border-b-2 border-ink">
-            <Suspense fallback={<PaneLoading label="map" />}>
-              <MapView
-                baseLayer={baseLayer}
-                radar={radar.data}
-                radarEnabled={radarEnabled}
-                firesDate={firesDate}
-                firesEnabled={firesEnabled}
-                flights={flights.data ?? []}
-                quakes={quakes.data ?? []}
-                iss={iss.data}
-                watch={watchlist.items.map((w) => ({
-                  id: w.id,
-                  name: w.name,
-                  lat: w.lat,
-                  lng: w.lng,
-                }))}
-                focus={focus}
-                onFocus={handleFocus}
-              />
-            </Suspense>
+            <ChunkErrorBoundary label="map">
+              <Suspense fallback={<PaneLoading label="map" />}>
+                <MapView
+                  baseLayer={baseLayer}
+                  radar={radar.data}
+                  radarEnabled={radarEnabled}
+                  firesDate={firesDate}
+                  firesEnabled={firesEnabled}
+                  flights={flights.data ?? []}
+                  quakes={quakes.data ?? []}
+                  iss={iss.data}
+                  watch={watchlist.items.map((w) => ({
+                    id: w.id,
+                    name: w.name,
+                    lat: w.lat,
+                    lng: w.lng,
+                  }))}
+                  focus={focus}
+                  onFocus={handleFocus}
+                />
+              </Suspense>
+            </ChunkErrorBoundary>
             <div className="absolute left-2 top-2 z-[1000] flex gap-1">
               {(["satellite", "streets"] as const).map((b) => (
                 <button
@@ -632,76 +644,92 @@ export default function Dashboard() {
             </TabsList>
 
             <TabsContent value="flights" className="min-h-0 flex-1">
-              <Suspense fallback={<PaneLoading label="flights" />}>
-                <FlightsPanel
-                  flights={flights.data ?? []}
-                  error={flights.error}
-                  updatedAt={flights.updatedAt}
-                  loading={flights.loading}
-                  onFocus={handleFocus}
-                />
-              </Suspense>
+              <ChunkErrorBoundary label="flights panel">
+                <Suspense fallback={<PaneLoading label="flights" />}>
+                  <FlightsPanel
+                    flights={flights.data ?? []}
+                    error={flights.error}
+                    updatedAt={flights.updatedAt}
+                    loading={flights.loading}
+                    onFocus={handleFocus}
+                  />
+                </Suspense>
+              </ChunkErrorBoundary>
             </TabsContent>
 
             <TabsContent value="events" className="min-h-0 flex-1">
-              <Suspense fallback={<PaneLoading label="events" />}>
-                <EventsPanel
-                  quakes={quakes.data ?? []}
-                  iss={iss.data}
-                  space={space.data ?? { kp: null, kpTime: null, dst: null, dstTime: null }}
-                  onFocus={handleFocus}
-                />
-              </Suspense>
+              <ChunkErrorBoundary label="events panel">
+                <Suspense fallback={<PaneLoading label="events" />}>
+                  <EventsPanel
+                    quakes={quakes.data ?? []}
+                    iss={iss.data}
+                    space={space.data ?? { kp: null, kpTime: null, dst: null, dstTime: null }}
+                    onFocus={handleFocus}
+                  />
+                </Suspense>
+              </ChunkErrorBoundary>
             </TabsContent>
 
             <TabsContent value="weather" className="min-h-0 flex-1">
-              <Suspense fallback={<PaneLoading label="weather" />}>
-                <WeatherPanel
-                  location={weatherLoc}
-                  isWatched={isWatched}
-                  onFocus={handleFocus}
-                  onWatchToggle={handleWatchToggle}
-                  onCountryPick={handleCountryPick}
-                  onUseMyLocation={handleUseMyLocation}
-                />
-              </Suspense>
+              <ChunkErrorBoundary label="weather panel">
+                <Suspense fallback={<PaneLoading label="weather" />}>
+                  <WeatherPanel
+                    location={weatherLoc}
+                    isWatched={isWatched}
+                    onFocus={handleFocus}
+                    onWatchToggle={handleWatchToggle}
+                    onCountryPick={handleCountryPick}
+                    onUseMyLocation={handleUseMyLocation}
+                  />
+                </Suspense>
+              </ChunkErrorBoundary>
             </TabsContent>
 
             <TabsContent value="tv" className="min-h-0 flex-1">
-              <Suspense fallback={<PaneLoading label="tv" />}>
-                <TvPanel onIndexed={setTvIndexed} />
-              </Suspense>
+              <ChunkErrorBoundary label="tv panel">
+                <Suspense fallback={<PaneLoading label="tv" />}>
+                  <TvPanel onIndexed={setTvIndexed} />
+                </Suspense>
+              </ChunkErrorBoundary>
             </TabsContent>
 
             <TabsContent value="cctv" className="min-h-0 flex-1">
-              <Suspense fallback={<PaneLoading label="cctv" />}>
-                <CctvPanel streams={cctv.data ?? []} />
-              </Suspense>
+              <ChunkErrorBoundary label="cctv panel">
+                <Suspense fallback={<PaneLoading label="cctv" />}>
+                  <CctvPanel streams={cctv.data ?? []} />
+                </Suspense>
+              </ChunkErrorBoundary>
             </TabsContent>
 
             <TabsContent value="radio" className="min-h-0 flex-1">
-              <Suspense fallback={<PaneLoading label="radio" />}>
-                <RadioPanel />
-              </Suspense>
+              <ChunkErrorBoundary label="radio panel">
+                <Suspense fallback={<PaneLoading label="radio" />}>
+                  <RadioPanel />
+                </Suspense>
+              </ChunkErrorBoundary>
             </TabsContent>
 
             <TabsContent value="news" className="min-h-0 flex-1">
-              <Suspense fallback={<PaneLoading label="news" />}>
-                <NewsPanel
-                  region={newsRegion}
-                  onRegionChange={setNewsRegion}
-                  feed={news.data}
-                  loading={news.loading}
-                  error={news.error}
-                  updatedAt={news.updatedAt}
-                />
-              </Suspense>
+              <ChunkErrorBoundary label="news panel">
+                <Suspense fallback={<PaneLoading label="news" />}>
+                  <NewsPanel
+                    region={newsRegion}
+                    onRegionChange={setNewsRegion}
+                    feed={news.data}
+                    loading={news.loading}
+                    error={news.error}
+                    updatedAt={news.updatedAt}
+                  />
+                </Suspense>
+              </ChunkErrorBoundary>
             </TabsContent>
 
             <TabsContent value="watch" className="min-h-0 flex-1">
-              <Suspense fallback={<PaneLoading label="watchlist" />}>
-                <WatchlistPanel onFocus={handleFocus} />
-              </Suspense>
+              <ChunkErrorBoundary label="watchlist panel">
+                <Suspense fallback={<PaneLoading label="watchlist" />}>
+                  <WatchlistPanel onFocus={handleFocus} />
+                </Suspense>
+              </ChunkErrorBoundary>
             </TabsContent>
           </Tabs>
         </aside>
@@ -747,15 +775,17 @@ export default function Dashboard() {
       />
 
       {/* ── Command palette (⌘K) ──────────────────────── */}
-      <Suspense fallback={null}>
-        <CommandPalette
-          open={paletteOpen}
-          onOpenChange={setPaletteOpen}
-          onSelectTab={setTab}
-          onSelectCountry={handleCountryPick}
-          onNavigate={(to) => navigate(to)}
-        />
-      </Suspense>
+      <ChunkErrorBoundary label="command palette">
+        <Suspense fallback={null}>
+          <CommandPalette
+            open={paletteOpen}
+            onOpenChange={setPaletteOpen}
+            onSelectTab={setTab}
+            onSelectCountry={handleCountryPick}
+            onNavigate={(to) => navigate(to)}
+          />
+        </Suspense>
+      </ChunkErrorBoundary>
     </div>
   );
 }
