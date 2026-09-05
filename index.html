@@ -83,23 +83,51 @@
   // Desktop site view — the APK defaults to the desktop-style layout (like a
   // browser's "request desktop site"); the preference persists per device in
   // localStorage and can be flipped at any time from the console header.
+  //
+  // The scale MUST be computed from the device's actual width, not a fixed
+  // guess: 1200px layout / 0.5 scale only produces a screen that exactly
+  // fits a device whose CSS width happens to be ~600dp. Every other device
+  // either overflows (cut-off buttons/ticker, needing horizontal scroll) or
+  // leaves a gutter — which is exactly the "content not fitting" bug. A
+  // real desktop-site toggle (e.g. a browser's) always fits the full width
+  // regardless of device, because it scales to the *measured* viewport.
   var viewportMeta = document.getElementById('viewport-meta');
   var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-  var DESKTOP_VIEWPORT = 'width=1200, initial-scale=0.5, user-scalable=yes';
+  var DESKTOP_LAYOUT_WIDTH = 1200;
   var MOBILE_VIEWPORT = 'width=device-width, initial-scale=1.0, user-scalable=yes';
+
+  function desktopViewportContent() {
+    var w = window.innerWidth || document.documentElement.clientWidth || 360;
+    var scale = w / DESKTOP_LAYOUT_WIDTH;
+    return 'width=' + DESKTOP_LAYOUT_WIDTH +
+      ', initial-scale=' + scale +
+      ', minimum-scale=' + scale +
+      ', user-scalable=yes';
+  }
+
   var stored = null;
   try { stored = localStorage.getItem('terra-desktop-view'); } catch (e) { /* storage unavailable */ }
   var desktop = stored === 'true' || (stored === null && isNative);
-  if (viewportMeta) {
-    viewportMeta.content = desktop ? DESKTOP_VIEWPORT : MOBILE_VIEWPORT;
+
+  function applyViewport(isDesktop) {
+    if (!viewportMeta) return;
+    viewportMeta.content = isDesktop ? desktopViewportContent() : MOBILE_VIEWPORT;
   }
+  applyViewport(desktop);
 
   window.toggleDesktopView = function() {
-    var isDesktop = viewportMeta.content.indexOf('width=1200') !== -1;
+    var isDesktop = viewportMeta.content.indexOf('width=' + DESKTOP_LAYOUT_WIDTH) !== -1;
     var next = !isDesktop;
     try { localStorage.setItem('terra-desktop-view', String(next)); } catch (e) { /* ignore */ }
-    viewportMeta.content = next ? DESKTOP_VIEWPORT : MOBILE_VIEWPORT;
+    applyViewport(next);
   };
+
+  // Re-fit on rotation/resize — the scale that fit in portrait won't fit
+  // landscape (or a foldable's unfold), so recompute rather than stretch.
+  window.addEventListener('resize', function() {
+    var isDesktop = viewportMeta && viewportMeta.content.indexOf('width=' + DESKTOP_LAYOUT_WIDTH) !== -1;
+    if (isDesktop) applyViewport(true);
+  });
 </script>
 
 <script type="module" src="/src/main.tsx"></script>
