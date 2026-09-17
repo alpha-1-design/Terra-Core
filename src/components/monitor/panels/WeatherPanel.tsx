@@ -119,7 +119,10 @@ export default function WeatherPanel({
   );
 
   const alerts = usePolling<WeatherAlert[]>(
-    () => fetchAlerts(location!.lat, location!.lng),
+    () =>
+      location
+        ? fetchAlerts(location.lat, location.lng)
+        : Promise.reject(new Error("no-location")),
     { enabled: !!location, intervalMs: 5 * 60_000 },
   );
 
@@ -365,7 +368,7 @@ export default function WeatherPanel({
                   {Math.round(data.current.apparentTemperature)}°
                 </div>
               </div>
-              <div className="col-span-2 mt-2 grid grid-cols-4 gap-1.5">
+              <div className="col-span-2 mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                 {[
                   { icon: Wind, label: "Wind", value: `${fmtNum(data.current.windSpeed)} km/h` },
                   { icon: Droplets, label: "Humidity", value: `${Math.round(data.current.humidity)}%` },
@@ -384,7 +387,7 @@ export default function WeatherPanel({
             </div>
 
             {/* Solar readout */}
-            <div className="grid grid-cols-4 gap-1.5 border-b-2 border-ink p-3">
+            <div className="grid grid-cols-2 gap-1.5 border-b-2 border-ink p-3 sm:grid-cols-4">
               <div className="border-2 border-ink bg-muted p-1.5">
                 <div className="flex items-center gap-1 text-muted-foreground">
                   <Sunrise className="size-3" />
@@ -499,7 +502,9 @@ export default function WeatherPanel({
             </div>
 
             {/* 7-day forecast */}
-            <div className="grid grid-cols-7 gap-1 p-3">
+            {/* 7 fixed columns crush a ~360px phone — 4-up on small screens,
+                full week on sm+. */}
+            <div className="grid grid-cols-4 gap-1 p-3 sm:grid-cols-7">
               {data.daily.time.map((d, i) => {
                 const day = new Date(d + "T12:00:00");
                 return (

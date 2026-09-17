@@ -9,9 +9,12 @@ function parseStates(json: { states?: (unknown[] | null)[] }): Flight[] {
 
   const flights: Flight[] = [];
   for (const r of rows) {
-    const icao24 = r[0] as string;
-    const callsign = ((r[1] as string) ?? "").trim() || null;
-    const originCountry = (r[2] as string) ?? "Unknown";
+    // OpenSky emits null cells for aircraft with partial transponder data —
+    // a null ICAO row would otherwise throw on .toUpperCase() downstream.
+    const icao24 = r[0] as string | null;
+    if (!icao24) continue;
+    const callsign = ((r[1] as string | null) ?? "").trim() || null;
+    const originCountry = (r[2] as string | null) ?? "Unknown";
     const lng = r[5] as number | null;
     const lat = r[6] as number | null;
     if (lat === null || lng === null) continue;

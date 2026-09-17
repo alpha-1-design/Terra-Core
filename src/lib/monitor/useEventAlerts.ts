@@ -29,6 +29,16 @@ function seenSet(key: string): Set<string> {
   }
 }
 
+/** localStorage throws in Safari private mode / blocked-cookie contexts —
+ *  never let persistence preferences crash the component that reads them. */
+function readPref(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 function markSeen(key: string, id: string) {
   try {
     const set = seenSet(key);
@@ -94,7 +104,7 @@ export function useEventAlerts(opts: {
 }) {
   const { quakes, iss, watch } = opts;
   const [enabled, setEnabledState] = useState(
-    () => localStorage.getItem(ENABLED_KEY) === "true",
+    () => readPref(ENABLED_KEY) === "true",
   );
   const [counts, setCounts] = useState<AlertCounts>({
     quakeCount: 0,
@@ -125,14 +135,22 @@ export function useEventAlerts(opts: {
     const ok = await requestAlertPermission();
     if (ok) {
       setEnabledState(true);
-      localStorage.setItem(ENABLED_KEY, "true");
+      try {
+        localStorage.setItem(ENABLED_KEY, "true");
+      } catch {
+        /* storage unavailable — session-only alerts */
+      }
     }
     return ok;
   };
 
   const disable = () => {
     setEnabledState(false);
-    localStorage.setItem(ENABLED_KEY, "false");
+    try {
+      localStorage.setItem(ENABLED_KEY, "false");
+    } catch {
+      /* storage unavailable — session-only alerts */
+    }
   };
 
   useEffect(() => {

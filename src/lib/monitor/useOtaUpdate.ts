@@ -100,7 +100,11 @@ export function useOtaUpdate() {
   );
 
   const dismiss = useCallback((tag: string) => {
-    localStorage.setItem(DISMISS_KEY, tag);
+    try {
+      localStorage.setItem(DISMISS_KEY, tag);
+    } catch {
+      /* storage unavailable — dismiss is session-only */
+    }
     setUpdate(null);
   }, []);
 

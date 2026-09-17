@@ -79,44 +79,65 @@ export async function fetchWeather(
     aq = (await aqRes.json()) as OpenMeteoAq;
   }
 
+  // Defensive default: Open-Meteo always returns the requested arrays, but a
+  // malformed/partial upstream response must never crash the UI on .slice/.map.
+  const safe = <T,>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : []);
+  const hourly = {
+    time: safe(forecast.hourly?.time),
+    temperature: safe(forecast.hourly?.temperature_2m),
+    precipProb: safe(forecast.hourly?.precipitation_probability),
+    weatherCode: safe(forecast.hourly?.weather_code),
+  };
+  const daily = {
+    time: safe(forecast.daily?.time),
+    weatherCode: safe(forecast.daily?.weather_code),
+    tMax: safe(forecast.daily?.temperature_2m_max),
+    tMin: safe(forecast.daily?.temperature_2m_min),
+    precipProb: safe(forecast.daily?.precipitation_probability_max),
+    windMax: safe(forecast.daily?.wind_speed_10m_max),
+    sunrise: safe(forecast.daily?.sunrise),
+    sunset: safe(forecast.daily?.sunset),
+    daylight: safe(forecast.daily?.daylight_duration),
+  };
+  const cur = forecast.current ?? ({} as OpenMeteoForecast["current"]);
   return {
     location: { name, lat, lng },
     current: {
-      temperature: forecast.current.temperature_2m,
-      apparentTemperature: forecast.current.apparent_temperature,
-      humidity: forecast.current.relative_humidity_2m,
-      weatherCode: forecast.current.weather_code,
-      isDay: forecast.current.is_day === 1,
-      precipitation: forecast.current.precipitation,
-      cloudCover: forecast.current.cloud_cover,
-      pressure: forecast.current.pressure_msl,
-      windSpeed: forecast.current.wind_speed_10m,
-      windDirection: forecast.current.wind_direction_10m,
-      windGusts: forecast.current.wind_gusts_10m,
+      temperature: cur.temperature_2m ?? 0,
+      apparentTemperature: cur.apparent_temperature ?? 0,
+      humidity: cur.relative_humidity_2m ?? 0,
+      weatherCode: cur.weather_code ?? 0,
+      isDay: cur.is_day === 1,
+      precipitation: cur.precipitation ?? 0,
+      cloudCover: cur.cloud_cover ?? 0,
+      pressure: cur.pressure_msl ?? 1013,
+      windSpeed: cur.wind_speed_10m ?? 0,
+      windDirection: cur.wind_direction_10m ?? 0,
+      windGusts: cur.wind_gusts_10m ?? 0,
     },
     hourly: {
-      time: forecast.hourly.time.slice(0, 24),
-      temperature: forecast.hourly.temperature_2m.slice(0, 24),
-      precipProb: forecast.hourly.precipitation_probability.slice(0, 24),
-      weatherCode: forecast.hourly.weather_code.slice(0, 24),
+      time: hourly.time.slice(0, 24),
+      temperature: hourly.temperature.slice(0, 24),
+      precipProb: hourly.precipProb.slice(0, 24),
+      weatherCode: hourly.weatherCode.slice(0, 24),
     },
     daily: {
-      time: forecast.daily.time.slice(0, 7),
-      code: forecast.daily.weather_code.slice(0, 7),
-      tMax: forecast.daily.temperature_2m_max.slice(0, 7),
-      tMin: forecast.daily.temperature_2m_min.slice(0, 7),
-      precipProb: forecast.daily.precipitation_probability_max.slice(0, 7),
-      windMax: forecast.daily.wind_speed_10m_max.slice(0, 7),
-      sunrise: forecast.daily.sunrise.slice(0, 7),
-      sunset: forecast.daily.sunset.slice(0, 7),
-      daylightDuration: forecast.daily.daylight_duration.slice(0, 7),
+      time: daily.time.slice(0, 7),
+      code: daily.weatherCode.slice(0, 7),
+      tMax: daily.tMax.slice(0, 7),
+      tMin: daily.tMin.slice(0, 7),
+      precipProb: daily.precipProb.slice(0, 7),
+      windMax: daily.windMax.slice(0, 7),
+      sunrise: daily.sunrise.slice(0, 7),
+      sunset: daily.sunset.slice(0, 7),
+      daylightDuration: daily.daylight.slice(0, 7),
     },
     aq: {
       usAqi: aq.current?.us_aqi ?? null,
       pm25: aq.current?.pm2_5 ?? null,
       pm10: aq.current?.pm10 ?? null,
     },
-    timezone: forecast.timezone,
+    timezone: forecast.timezone ?? "UTC",
     updatedAt: Date.now(),
   };
 }

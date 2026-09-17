@@ -14,11 +14,16 @@ export async function fetchRadarFrames(): Promise<RadarData> {
   if (!res.ok) throw new Error(`RainViewer ${res.status}`);
   const json = (await res.json()) as RainViewerManifest;
 
-  const frames = [...json.radar.past, ...json.radar.nowcast]
+  // The manifest shape is stable, but a partial/changed response must never
+  // throw on spread of undefined — degrade to an empty frame list.
+  const past = Array.isArray(json?.radar?.past) ? json.radar.past : [];
+  const nowcast = Array.isArray(json?.radar?.nowcast) ? json.radar.nowcast : [];
+  const frames = [...past, ...nowcast]
+    .filter((f) => f && typeof f.time === "number" && typeof f.path === "string")
     .sort((a, b) => a.time - b.time)
     .slice(-24); // last ~4h in 10-min steps
 
-  return { host: json.host, generated: json.generated, frames };
+  return { host: json.host ?? "https://tilecache.rainviewer.com", generated: json.generated ?? Date.now() / 1000, frames };
 }
 
 export function radarTileUrl(

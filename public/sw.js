@@ -10,7 +10,7 @@
  *
  * Bump VERSION to force clients to re-precache after a deploy.
  */
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL_CACHE = `terra-core-shell-${VERSION}`;
 
 const STATIC = ["/", "/favicon.svg", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png", "/icons/apple-touch-icon.png"];
@@ -68,6 +68,10 @@ self.addEventListener("fetch", (event) => {
 
   // Live data feeds and anything cross-origin: default network behavior.
   if (!sameOrigin(url.href)) return;
+  // Same-origin API routes (Vercel functions: /api/flights, /api/news,
+  // /api/satellites) serve live, per-minute data with their own CDN cache
+  // headers — the shell's cache-first strategy must never freeze them.
+  if (url.pathname.startsWith("/api/")) return;
 
   // Page navigations: network-first, offline falls back to the shell.
   if (req.mode === "navigate") {

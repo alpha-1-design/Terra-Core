@@ -23,8 +23,10 @@ const REPO_DESCRIPTION =
   "Terra-Core — real-time global monitoring console. Live ADS-B aircraft, weather & AQI, NWS alerts, space weather, aurora oval, precipitation radar, live TV and world news (GDELT / GNews) on an interactive 3D globe. Zero-backend client-side app, installable PWA — an extension of Core-x (Global Watch).";
 const BRANCH = "main";
 const COMMIT_MESSAGE = "Initial commit: Terra-Core global monitoring console";
+// Custom message for updates: pass it as argv[2] (e.g.
+// `bun run scripts/push-to-github.mjs "Update: ..."`). Falls back to a generic line.
 const UPDATE_MESSAGE =
-  "Update: country-based weather probing, globe country-name fix, live TV index count";
+  process.argv[2] ?? "Update: Terra-Core — bug fixes and feature polish";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 

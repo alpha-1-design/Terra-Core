@@ -21,8 +21,10 @@ export async function fetchAurora(): Promise<AuroraState> {
   const res = await fetch(OVATION_URL, { cache: "no-store" });
   if (!res.ok) throw new Error(`NOAA OVATION ${res.status}`);
   const json = (await res.json()) as OvationResponse;
+  // Malformed/partial NOAA response must degrade, not throw inside the mapper.
+  const cells = Array.isArray(json?.coordinates) ? json.coordinates : [];
 
-  const max = json.coordinates.reduce((m, c) => Math.max(m, c[2]), 0);
+  const max = cells.reduce((m, c) => Math.max(m, c?.[2] ?? 0), 0);
   if (max <= 0) {
     return {
       observedAt: json["Observation Time"] ?? null,
@@ -38,7 +40,7 @@ export async function fetchAurora(): Promise<AuroraState> {
   const candidates: { lat: number; lng: number; intensity: number }[] = [];
   for (let lo = 0; lo < 360; lo += 2) {
     for (let la = -90; la <= 90; la += 2) {
-      const cell = json.coordinates[lo * 181 + (la + 90)];
+      const cell = cells[lo * 181 + (la + 90)];
       if (!cell) continue;
       const intensity = cell[2];
       if (intensity < threshold) continue;

@@ -622,7 +622,9 @@ export default function Dashboard() {
             onValueChange={setTab}
             className="flex min-h-[440px] flex-col border-2 border-ink bg-chalk lg:min-h-0 lg:flex-1"
           >
-            <TabsList className="h-10 gap-0 rounded-none border-0 border-b-2 border-ink bg-muted p-0 shadow-none">
+            {/* Mobile: 8 tabs don't fit a ~360px row — scroll horizontally
+                instead of truncating labels. Desktop: equal-width flex. */}
+            <TabsList className="h-10 gap-0 overflow-x-auto rounded-none border-0 border-b-2 border-ink bg-muted p-0 shadow-none">
               {[
                 ["flights", "Flights"],
                 ["events", "Events"],
@@ -636,7 +638,7 @@ export default function Dashboard() {
                 <TabsTrigger
                   key={id}
                   value={id}
-                  className="h-full flex-1 rounded-none px-1 font-mono text-[10px] uppercase tracking-wider"
+                  className="h-full min-w-[64px] flex-none rounded-none px-1 font-mono text-[10px] uppercase tracking-wider lg:min-w-0 lg:flex-1"
                 >
                   {label}
                 </TabsTrigger>
@@ -735,8 +737,10 @@ export default function Dashboard() {
         </aside>
       </main>
 
-      {/* ── Floating navigation ───────────────────────────── */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-2">
+      {/* ── Floating navigation (mobile/tablet only — on lg the layout is
+          h-screen overflow-hidden, so the window never scrolls and these
+          buttons would be dead weight over the panels) ── */}
+      <div className="fixed bottom-6 right-6 z-20 flex flex-col gap-2 lg:hidden">
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           className="border-2 border-ink bg-volt text-paper rounded-full p-2 shadow-lg hover:bg-cobalt/20 transition-colors"
