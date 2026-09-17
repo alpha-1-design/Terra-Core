@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "../usePolling";
 import * as satellite from "satellite.js";
 import type { Satellite as SatPosition } from "../types";
 
@@ -17,7 +18,7 @@ export const SAT_POLL_MS = 5 * 60_000;
 const MAX_SATS = 1400;
 
 async function fetchTleText(): Promise<string> {
-  const res = await fetch(PROXY_URL, { cache: "no-store" });
+  const res = await fetchWithTimeout(PROXY_URL, { cache: "no-store" }, 15_000);
   if (!res.ok) throw new Error(`satellite proxy ${res.status}`);
   return res.text();
 }

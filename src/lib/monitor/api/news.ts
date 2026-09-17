@@ -12,6 +12,8 @@
  *      so the panel is never dead — even in local dev with no function.
  */
 
+import { fetchWithTimeout } from "../usePolling";
+
 export interface NewsArticle {
   title: string;
   description: string;
@@ -67,7 +69,7 @@ async function fetchKeyed(r: NewsRegion): Promise<NewsFeed | null> {
   try {
     const q = new URLSearchParams({ lang: r.lang, max: "10" });
     if (r.country) q.set("country", r.country);
-    const res = await fetch(`/api/news?${q}`);
+    const res = await fetchWithTimeout(`/api/news?${q}`, {}, 12_000);
     if (!res.ok) return null; // 404 (no function in dev) or 501 (no key)
     const data = (await res.json()) as {
       configured?: boolean;
@@ -93,7 +95,7 @@ async function fetchGdelt(r: NewsRegion): Promise<NewsFeed | null> {
   try {
     const q = new URLSearchParams({ source: "gdelt", max: "10" });
     if (r.country) q.set("country", r.country);
-    const res = await fetch(`/api/news?${q}`);
+    const res = await fetchWithTimeout(`/api/news?${q}`, {}, 12_000);
     if (!res.ok) return null; // 404 (no function in dev) or 502 (upstream)
     const data = (await res.json()) as {
       source?: string;

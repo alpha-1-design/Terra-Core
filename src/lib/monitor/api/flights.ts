@@ -1,4 +1,4 @@
-import { RateLimitError } from "../usePolling";
+import { fetchWithTimeout, RateLimitError } from "../usePolling";
 import type { Flight } from "../types";
 
 const STATES_URL = "https://opensky-network.org/api/states/all";
@@ -48,7 +48,7 @@ function parseStates(json: { states?: (unknown[] | null)[] }): Flight[] {
  */
 export async function fetchFlights(): Promise<Flight[]> {
   try {
-    const res = await fetch("/api/flights", { cache: "no-store" });
+    const res = await fetchWithTimeout("/api/flights", { cache: "no-store" }, 12_000);
     if (res.status === 429) {
       throw new RateLimitError("OpenSky rate limited", 300_000);
     }
@@ -62,7 +62,7 @@ export async function fetchFlights(): Promise<Flight[]> {
     return parseStates(json);
   } catch {
     // Fall back to the direct OpenSky endpoint.
-    const res = await fetch(STATES_URL, { cache: "no-store" });
+    const res = await fetchWithTimeout(STATES_URL, { cache: "no-store" }, 20_000);
     if (res.status === 429) {
       throw new RateLimitError("OpenSky rate limited", 300_000);
     }

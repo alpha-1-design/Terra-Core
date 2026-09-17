@@ -1,5 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+/** Serverless proxies can occasionally hang (cold start, upstream stall).
+ *  A bounded fetch keeps the whole polling loop responsive — the panel
+ *  surfaces an error and retries on the next tick instead of waiting forever. */
+export async function fetchWithTimeout(
+  url: string,
+  init: RequestInit = {},
+  timeoutMs = 15_000,
+): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 interface PollingOptions {
   enabled?: boolean;
   intervalMs: number;
