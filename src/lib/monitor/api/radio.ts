@@ -67,15 +67,15 @@ export async function fetchRadioStations(
   limit = 40,
 ): Promise<RadioStation[]> {
   const params = new URLSearchParams({
+    countrycode: countryCode,
     order: "votes",
     reverse: "true",
     limit: String(limit),
     hidebroken: "true",
   });
-  const res = await fetch(
-    `${API}/stations/bycountrycode/${countryCode}?${params}`,
-    { cache: "no-store" },
-  );
+  const res = await fetch(`${API}/stations/search?${params}`, {
+    cache: "no-store",
+  });
   if (!res.ok) throw new Error(`radio-browser ${res.status}`);
   const rows = (await res.json()) as RadioBrowserStation[];
   return rows

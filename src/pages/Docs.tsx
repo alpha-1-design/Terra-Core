@@ -6,6 +6,9 @@ const SOURCE_ROWS: [string, string, string][] = [
   ["3D globe imagery", "NASA GIBS (Blue Marble · MODIS live · Black Marble)", "No"],
   ["Country shapes · population", "Natural Earth", "No"],
   ["Live aircraft", "OpenSky Network (ADS-B, proxied)", "No"],
+  ["Military aircraft", "adsb.lol (proxied)", "No"],
+  ["Emergency aircraft", "OpenSky squawks 7500/7600/7700 + adsb.lol emergency flag (derived)", "No"],
+  ["Disaster alerts", "GDACS — UN OCHA / EC JRC (proxied)", "No"],
   ["Earthquakes (24h)", "USGS Earthquake Hazards", "No"],
   ["ISS position", "WhereTheISS.at", "No"],
   ["Weather · solar · air quality", "Open-Meteo · EPA AQI", "No"],
@@ -13,6 +16,7 @@ const SOURCE_ROWS: [string, string, string][] = [
   ["Precipitation radar", "RainViewer", "No"],
   ["Aurora oval", "NOAA OVATION Prime", "No"],
   ["Space weather (Kp / DST)", "NOAA SWPC", "No"],
+  ["Upcoming launches", "The Space Devs Launch Library 2 (proxied)", "No"],
   ["City search / geocoding", "Nominatim", "No"],
   ["Live TV index", "iptv-org", "No"],
   ["Live CCTV cameras", "Public camera networks · always-on HLS demo feeds", "No"],
@@ -157,9 +161,16 @@ export default function Docs() {
             <p>
               Terra-Core is a real-time command console over the entire planet:
               satellite imagery on a 3D demographic globe, every aircraft in
-              the sky, live weather and air quality for any point, seismic
-              events, space weather, the aurora oval, precipitation radar,
-              broadcast TV, public live CCTV cameras and a worldwide news wire.
+              the sky, military and emergency airspace, live weather and air
+              quality for any point, seismic events, space weather, the aurora
+              oval, global disaster alerts, precipitation radar, broadcast TV,
+              public live CCTV cameras and a worldwide news wire.
+            </p>
+            <p className="mt-3">
+              The globe has two renderers: a stylised <b>demographic</b> globe
+              (globe.gl) and an optional <b>Photoreal 3D</b> mode that streams
+              Google Photorealistic 3D Tiles through CesiumJS — real buildings
+              and terrain, with the same live layers overlaid.
             </p>
             <p className="mt-3">
               Weather probes anywhere: pick any of the <b>196 embedded
@@ -225,7 +236,7 @@ export default function Docs() {
               {[
                 [
                   "Static frontend",
-                  "React 19 + Vite + Tailwind. WebGL globe (globe.gl), Leaflet map, HLS video. Builds to a static site — deploy anywhere.",
+                  "React 19 + Vite + Tailwind. WebGL globe (globe.gl) with an optional CesiumJS photoreal mode, Leaflet map, HLS video. Builds to a static site — deploy anywhere.",
                 ],
                 [
                   "No backend, no database",
@@ -323,6 +334,28 @@ export default function Docs() {
                 </li>
               ))}
             </ol>
+            <p className="mt-4">
+              One exception is <b>client-side by design</b>:{" "}
+              <span className="font-mono text-[11px] font-semibold">
+                Config
+              </span>
+              , which unlocks the <b>Photoreal 3D</b> globe mode. Vite inlines
+              every <span className="font-mono">VITE_*</span> variable into the
+              shipped JavaScript, because the browser needs the token to request
+              tiles — so protect it with the token&apos;s{" "}
+              <b>Allowed origins</b> list at{" "}
+              <a
+                href="https://ion.cesium.com/tokens"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-cobalt underline hover:text-ink"
+              >
+                ion.cesium.com/tokens <ExternalLink className="size-3" />
+              </a>{" "}
+              (add your deployed origin and <span className="font-mono">http://localhost:5173</span>
+              ), then set the variable on Vercel/redeploy. Without it, the
+              console simply hides the mode behind a link.
+            </p>
           </Section>
 
           <Section id="pwa" n="05" title="PWA & offline">
@@ -340,8 +373,7 @@ export default function Docs() {
             </p>
             <p className="mt-3">
               Prefer a native install? The <b>Android APK</b> (below) ships the
-              same console with a fixed desktop-style viewport — no browser
-              needed.
+              same console in a mobile-first viewport — no browser needed.
             </p>
           </Section>
 
@@ -354,7 +386,7 @@ export default function Docs() {
             <ul className="mt-3 flex list-none flex-col gap-2">
               {[
                 "The APK is produced automatically by the build-apk GitHub Action on every push to main (debug + signed release artifacts).",
-                "The console runs in a desktop-style viewport by default on larger phones — rotate for portrait, or toggle between views at any time.",
+                "The console opens in the mobile layout on your phone — tap the Desktop/Mobile button in the header to switch to the desktop-style viewport at any time.",
                 "No Play Store required: install the APK directly on any Android 6+ (API 23+) device.",
               ].map((t, i) => (
                 <li key={i} className="flex items-start gap-2">
@@ -369,10 +401,10 @@ export default function Docs() {
               Desktop view toggle
             </h3>
             <p className="mt-1 text-xs leading-relaxed">
-              The APK opens with the console laid out like the desktop site (a
-              1200px-wide viewport scaled to fit). You can switch between
-              desktop and mobile viewport at any time with the in-app toggle —
-              the choice is remembered on the device.
+              The APK opens in the mobile layout by default. Tap the
+              Desktop/Mobile toggle in the header to switch to the desktop-site
+              layout (a 1200px-wide viewport scaled to fit) — the choice is
+              remembered on the device.
             </p>
             <h3 className="mt-4 font-sans text-sm font-bold uppercase tracking-tight">
               Building the APK yourself
@@ -462,7 +494,8 @@ cd android && ./gradlew assembleDebug`}
               Grateful to the free public infrastructure this console runs on:
               NASA GIBS, OpenSky Network, USGS, NOAA SWPC, NOAA OVATION,
               Open-Meteo, EPA, NWS, RainViewer, WhereTheISS, Natural Earth,
-              OpenStreetMap / Nominatim, iptv-org, the GDELT Project, GNews and Google News.
+              OpenStreetMap / Nominatim, iptv-org, the GDELT Project, GNews,
+              Google News, The Space Devs Launch Library 2 and adsb.lol.
             </p>
             <div className="mt-4 flex items-center gap-2">
               <Radio className="size-4 text-signal blink-dot" />

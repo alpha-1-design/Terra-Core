@@ -9,7 +9,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Is the data actually live?",
-    a: "Yes — every layer pulls from a real public feed in real time: OpenSky ADS-B aircraft, USGS earthquakes, Open-Meteo weather, NOAA space weather and aurora, RainViewer radar, iptv-org TV, public CCTV cameras, and the world news wire. The status bar at the bottom shows each feed's health.",
+    a: "Yes — every layer pulls from a real public feed in real time: OpenSky ADS-B aircraft, adsb.lol military airspace, emergency-squawk watchers (7500/7600/7700), USGS earthquakes, GDACS global disaster alerts, Launch Library 2 orbital launches, Open-Meteo weather, NOAA space weather and aurora, RainViewer radar, iptv-org TV, public CCTV cameras, and the world news wire. The status bar at the bottom shows each feed's health.",
   },
   {
     q: "Why does a feed sometimes show offline?",
@@ -21,19 +21,23 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Can I install Terra-Core like an app?",
-    a: "Yes — two ways. It's a PWA: on desktop use the install icon in the address bar, on mobile 'Add to Home Screen' — it opens fullscreen with its own icon and the app shell works offline. On Android you can also install the native APK for a desktop-style console layout.",
+    a: "Yes — two ways. It's a PWA: on desktop use the install icon in the address bar, on mobile 'Add to Home Screen' — it opens fullscreen with its own icon and the app shell works offline. On Android you can also install the native APK for a fullscreen console (mobile layout by default, with a desktop-style toggle in the header).",
   },
   {
     q: "Can I get Terra-Core as an Android APK?",
-    a: "Yes — the app is packaged as a native Android app with Capacitor. Every push to the repository builds a debug and a signed release APK automatically; install the APK directly on any Android 6+ device, no Play Store required. The APK opens the console in a desktop-style viewport, with an in-app toggle to switch between desktop and mobile layouts (your choice is remembered).",
+    a: "Yes — the app is packaged as a native Android app with Capacitor. Every push to the repository builds a debug and a signed release APK automatically; install the APK directly on any Android 6+ device, no Play Store required. The APK opens the console in the mobile layout, with an in-app toggle to switch to the desktop-style viewport (your choice is remembered).",
   },
   {
     q: "Why don't some CCTV streams play?",
     a: "Public camera feeds are frequently geo-blocked or taken offline. The CCTV panel degrades gracefully, and the two built-in demo streams (MJPEG and HLS test feeds) always play so you can verify playback instantly.",
   },
   {
+    q: "What is the Photoreal 3D globe?",
+    a: "A second globe renderer behind the 'Photoreal 3D' control in the console. It streams Google Photorealistic 3D Tiles through CesiumJS — real satellite-graded buildings and terrain — with the same live layers (aircraft, quakes, disasters, launches, satellites, aurora) overlaid as points. It's optional and lazy-loaded: it needs a free Cesium ion token (Config, see the docs) and only downloads when you switch to it.",
+  },
+  {
     q: "Do I need an API key for anything?",
-    a: "No — everything works out of the box. Optionally, adding a NEWS_API_KEY (in Vercel → Settings → Environment Variables) upgrades the news feed to the keyed GNews API; without it, the public Google News fallback keeps working.",
+    a: "No — everything works out of the box. Two optional upgrades: a NEWS_API_KEY (in Vercel → Settings → Environment Variables) upgrades the news feed to the keyed GNews API, and a Config unlocks the Photoreal 3D globe. Without them the public fallbacks keep working.",
   },
   {
     q: "Where is my watchlist stored?",

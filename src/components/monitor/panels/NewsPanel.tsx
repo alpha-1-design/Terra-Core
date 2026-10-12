@@ -91,12 +91,11 @@ export default function NewsPanel({
         {error && !feed && (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
             <p className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-              Headline feed unreachable ({error}).
+              Headlines temporarily unavailable ({error}).
             </p>
             <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-              Add <b>NEWS_API_KEY</b> (Vercel → Settings → Environment
-              Variables) for the keyed GNews feed; without it the open GDELT
-              and Google News RSS wires take over automatically.
+              The feed should return shortly — fallback sources are
+              automatically used when available.
             </p>
           </div>
         )}

@@ -17,6 +17,9 @@ import { fetchAurora, AURORA_POLL_MS } from "@/lib/monitor/api/aurora";
 import { fetchCctvStreams, CCTV_POLL_MS } from "@/lib/monitor/api/cctv";
 import { fetchFlights, FLIGHT_POLL_MS } from "@/lib/monitor/api/flights";
 import { fetchSatellites, SAT_POLL_MS } from "@/lib/monitor/api/satellites";
+import { fetchLaunches, LAUNCH_POLL_MS } from "@/lib/monitor/api/launches";
+import { fetchMilitary, MIL_POLL_MS } from "@/lib/monitor/api/military";
+import { fetchDisasters, DISASTER_POLL_MS } from "@/lib/monitor/api/disasters";
 import { reverseGeocode } from "@/lib/monitor/api/geocode";
 import {
   fetchIss,
@@ -36,20 +39,24 @@ import type {
   FocusTarget,
   ImageryMode,
 } from "@/lib/monitor/types";
+import { collectEmergencies } from "@/lib/monitor/emergency";
 import { usePolling } from "@/lib/monitor/usePolling";
 import { useWatchlist } from "@/lib/monitor/watchlist";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertTriangle,
   Bell,
+  Crosshair,
   Flame,
   HardDrive,
   MonitorSmartphone,
   Radio,
+  Rocket,
   Satellite,
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { lazyWithRetry } from "@/lib/monitor/lazyWithRetry";
@@ -76,6 +83,7 @@ import ChunkErrorBoundary from "@/components/monitor/ChunkErrorBoundary";
  * instead of just the one piece that couldn't load.
  */
 const GlobeView = lazyWithRetry(() => import("@/components/monitor/GlobeView"), "globe");
+const CesiumView = lazyWithRetry(() => import("@/components/monitor/CesiumView"), "cesium");
 const MapView = lazyWithRetry(() => import("@/components/monitor/MapView"), "map");
 const CommandPalette = lazyWithRetry(() => import("@/components/monitor/CommandPalette"), "palette");
 const FlightsPanel = lazyWithRetry(() => import("@/components/monitor/panels/FlightsPanel"), "flights");
@@ -99,12 +107,21 @@ function PaneLoading({ label }: { label: string }) {
   );
 }
 
+/* Optional Cesium ion token — when present the operator can switch the globe
+   to Google Photorealistic 3D Tiles. Absent in local dev unless .env.local is
+   set; absent on Vercel until Config is added and redeployed. */
+const CESIUM_TOKEN = import.meta.env.Config ?? "";
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const watchlist = useWatchlist();
 
   /* ── Live data streams ─────────────────────────────── */
   const [satsEnabled, setSatsEnabled] = useState(false);
+  const [launchesEnabled, setLaunchesEnabled] = useState(true);
+  const [milEnabled, setMilEnabled] = useState(true);
+  const [disastersEnabled, setDisastersEnabled] = useState(true);
+  const [globeMode, setGlobeMode] = useState<"globe" | "photoreal">("globe");
   const flights = usePolling(fetchFlights, { intervalMs: FLIGHT_POLL_MS });
   const cctv = usePolling(fetchCctvStreams, { intervalMs: CCTV_POLL_MS });
   const sats = usePolling(fetchSatellites, {
@@ -116,6 +133,18 @@ export default function Dashboard() {
   const space = usePolling(fetchSpaceWeather, { intervalMs: 5 * 60_000 });
   const radar = usePolling(fetchRadarFrames, { intervalMs: 5 * 60_000 });
   const aurora = usePolling(fetchAurora, { intervalMs: AURORA_POLL_MS });
+  const launches = usePolling(fetchLaunches, {
+    enabled: launchesEnabled,
+    intervalMs: LAUNCH_POLL_MS,
+  });
+  const military = usePolling(fetchMilitary, {
+    enabled: milEnabled,
+    intervalMs: MIL_POLL_MS,
+  });
+  const disasters = usePolling(fetchDisasters, {
+    enabled: disastersEnabled,
+    intervalMs: DISASTER_POLL_MS,
+  });
 
   const [newsRegion, setNewsRegion] = useState("world");
   const newsFetcher = useCallback(() => fetchNewsFeed(newsRegion), [newsRegion]);
@@ -248,6 +277,24 @@ export default function Dashboard() {
 
   const isWatched = watchlist.isWatched(weatherLoc.name);
 
+  /* The Missions layer is toggleable — feed the globe/map an empty list when
+     it is off so the toggle actually clears the pads, rather than merely
+     pausing the poll (which would leave the last snapshot rendered). */
+  const launchList = launchesEnabled ? (launches.data ?? []) : [];
+  const milList = useMemo(
+    () => (milEnabled ? (military.data ?? []) : []),
+    [milEnabled, military.data],
+  );
+
+  /* Aircraft squawking 7500/7600/7700 (or flagging an ADS-B emergency) — the
+     globe paints a pulsing ring on each, the map a beacon, the panel a list. */
+  const emergencies = useMemo(
+    () => collectEmergencies(flights.data ?? [], milList),
+    [flights.data, milList],
+  );
+
+  const disasterList = disastersEnabled ? (disasters.data ?? []) : [];
+
   /* ── Handlers ──────────────────────────────────────── */
   const handlePick = (name: string, lat: number, lng: number) => {
     applyLoc({ name, lat, lng });
@@ -346,7 +393,7 @@ export default function Dashboard() {
           </span>
         </button>
 
-        <div className="min-w-[220px] flex-1">
+        <div className="min-w-0 flex-1 sm:min-w-[220px]">
           <CitySearch onPick={handlePick} />
         </div>
 
@@ -459,39 +506,98 @@ export default function Dashboard() {
       {/* ── Main command area ──────────────────────────── */}
       <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* 3D globe */}
-        <section className="relative h-[52vh] min-h-[360px] overflow-hidden border-b-2 border-ink lg:h-auto lg:min-h-0 lg:flex-1 lg:border-b-0 lg:border-r-2">
+        <section className="relative h-[40vh] min-h-[260px] overflow-hidden border-b-2 border-ink lg:h-auto lg:min-h-0 lg:flex-1 lg:border-b-0 lg:border-r-2">
           <ChunkErrorBoundary label="globe">
             <Suspense fallback={<PaneLoading label="globe" />}>
-              <GlobeView
-                imagery={imagery}
-                flights={flights.data ?? []}
-                quakes={quakes.data ?? []}
-                iss={iss.data}
-                aurora={aurora.data}
-                auroraEnabled={auroraEnabled}
-                satellites={sats.data ?? []}
-                focus={focus}
-                onSelectPoint={handleGlobePoint}
-              />
+              {globeMode === "photoreal" && CESIUM_TOKEN ? (
+                <CesiumView
+                  token={CESIUM_TOKEN}
+                  flights={flights.data ?? []}
+                  quakes={quakes.data ?? []}
+                  military={milList}
+                  emergencies={emergencies}
+                  disasters={disasterList}
+                  launches={launchList}
+                  iss={iss.data}
+                  satellites={sats.data ?? []}
+                  aurora={aurora.data}
+                  auroraEnabled={auroraEnabled}
+                  focus={focus}
+                  onSelectPoint={handleGlobePoint}
+                />
+              ) : (
+                <GlobeView
+                  imagery={imagery}
+                  flights={flights.data ?? []}
+                  quakes={quakes.data ?? []}
+                  iss={iss.data}
+                  aurora={aurora.data}
+                  auroraEnabled={auroraEnabled}
+                  satellites={sats.data ?? []}
+                  launches={launchList}
+                  military={milList}
+                  emergencies={emergencies}
+                  disasters={disasterList}
+                  focus={focus}
+                  onSelectPoint={handleGlobePoint}
+                />
+              )}
             </Suspense>
           </ChunkErrorBoundary>
 
-          {/* Imagery + aurora toggles */}
+          {/* Globe renderer + imagery + layer toggles */}
           <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1">
-            {imageryButtons.map((b) => (
+            <button
+              type="button"
+              onClick={() => setGlobeMode("globe")}
+              className={`border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
+                globeMode === "globe"
+                  ? "bg-ink text-paper shadow-[2px_2px_0_0_#ffd400]"
+                  : "bg-chalk hover:bg-volt/30"
+              }`}
+              title="Stylised 3D demographic globe"
+            >
+              Globe
+            </button>
+            {CESIUM_TOKEN ? (
               <button
-                key={b.mode}
                 type="button"
-                onClick={() => setImagery(b.mode)}
+                onClick={() => setGlobeMode("photoreal")}
                 className={`border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
-                  imagery === b.mode
-                    ? "bg-ink text-paper shadow-[2px_2px_0_0_#ffd400]"
-                    : "bg-chalk hover:bg-volt/30"
+                  globeMode === "photoreal"
+                    ? "bg-ink text-paper shadow-[2px_2px_0_0_#00c2d1]"
+                    : "bg-chalk hover:bg-[#00c2d1]/25"
                 }`}
+                title="Google Photorealistic 3D Tiles · CesiumJS"
               >
-                {b.label}
+                Photoreal 3D
               </button>
-            ))}
+            ) : (
+              <a
+                href="https://ion.cesium.com/tokens"
+                target="_blank"
+                rel="noreferrer"
+                className="border-2 border-ink bg-chalk px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest text-muted-foreground transition-all hover:bg-[#00c2d1]/25"
+                title="Add Config to enable the photoreal globe"
+              >
+                Photoreal 3D ⧉
+              </a>
+            )}
+            {globeMode === "globe" &&
+              imageryButtons.map((b) => (
+                <button
+                  key={b.mode}
+                  type="button"
+                  onClick={() => setImagery(b.mode)}
+                  className={`border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
+                    imagery === b.mode
+                      ? "bg-ink text-paper shadow-[2px_2px_0_0_#ffd400]"
+                      : "bg-chalk hover:bg-volt/30"
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
             <button
               type="button"
               onClick={() => setAuroraEnabled((v) => !v)}
@@ -511,10 +617,49 @@ export default function Dashboard() {
                   ? "bg-cobalt text-white shadow-[2px_2px_0_0_#141414]"
                   : "bg-chalk hover:bg-cobalt/20"
               }`}
-              title="Live satellite positions (TLE) · needs the Vercel proxy"
+              title="Live satellite positions (TLE)"
             >
               <Satellite className="size-3" />
               Sats {satsEnabled ? "On" : "Off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLaunchesEnabled((v) => !v)}
+              className={`flex items-center gap-1 border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
+                launchesEnabled
+                  ? "bg-[#b14cff] text-white shadow-[2px_2px_0_0_#141414]"
+                  : "bg-chalk hover:bg-[#b14cff]/20"
+              }`}
+              title="Upcoming orbital launches · Launch Library 2"
+            >
+              <Rocket className="size-3" />
+              Missions {launchesEnabled ? "On" : "Off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMilEnabled((v) => !v)}
+              className={`flex items-center gap-1 border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
+                milEnabled
+                  ? "bg-[#ff9d00] text-ink shadow-[2px_2px_0_0_#141414]"
+                  : "bg-chalk hover:bg-[#ff9d00]/20"
+              }`}
+              title="Military aircraft · adsb.lol"
+            >
+              <Crosshair className="size-3" />
+              Military {milEnabled ? "On" : "Off"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setDisastersEnabled((v) => !v)}
+              className={`flex items-center gap-1 border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
+                disastersEnabled
+                  ? "bg-alert text-white shadow-[2px_2px_0_0_#141414]"
+                  : "bg-chalk hover:bg-alert/20"
+              }`}
+              title="Global disaster alerts · GDACS (UN OCHA)"
+            >
+              <AlertTriangle className="size-3" />
+              Hazard {disastersEnabled ? "On" : "Off"}
             </button>
           </div>
 
@@ -530,6 +675,19 @@ export default function Dashboard() {
               </span>
               <span className="flex items-center gap-1">
                 <span className="size-2 border border-ink bg-alert" /> Seismic
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="size-2 border border-ink" style={{ background: "#b14cff" }} /> Launch
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="size-2 border border-ink" style={{ background: "#ff9d00" }} /> Military
+              </span>
+              <span className="flex items-center gap-1">
+                <span
+                  className="size-2 border border-ink"
+                  style={{ background: "linear-gradient(90deg,#00a651,#ff9d00,#ff2e2e)" }}
+                />{" "}
+                Hazard
               </span>
               <span className="flex items-center gap-1">
                 <span className="size-2 border border-ink bg-volt" /> ISS
@@ -550,7 +708,7 @@ export default function Dashboard() {
 
         {/* Right column: map + panels */}
         <aside className="flex w-full shrink-0 flex-col lg:w-[420px]">
-          <div className="relative h-[260px] shrink-0 border-b-2 border-ink">
+          <div className="relative h-[200px] shrink-0 border-b-2 border-ink lg:h-[260px]">
             <ChunkErrorBoundary label="map">
               <Suspense fallback={<PaneLoading label="map" />}>
                 <MapView
@@ -562,6 +720,10 @@ export default function Dashboard() {
                   flights={flights.data ?? []}
                   quakes={quakes.data ?? []}
                   iss={iss.data}
+                  launches={launchList}
+                  military={milList}
+                  emergencies={emergencies}
+                  disasters={disasterList}
                   watch={watchlist.items.map((w) => ({
                     id: w.id,
                     name: w.name,
@@ -620,7 +782,7 @@ export default function Dashboard() {
           <Tabs
             value={tab}
             onValueChange={setTab}
-            className="flex min-h-[440px] flex-col border-2 border-ink bg-chalk lg:min-h-0 lg:flex-1"
+            className="flex min-h-[320px] flex-col border-2 border-ink bg-chalk lg:min-h-0 lg:flex-1"
           >
             {/* Mobile: 8 tabs don't fit a ~360px row — scroll horizontally
                 instead of truncating labels. Desktop: equal-width flex. */}
@@ -650,6 +812,8 @@ export default function Dashboard() {
                 <Suspense fallback={<PaneLoading label="flights" />}>
                   <FlightsPanel
                     flights={flights.data ?? []}
+                    military={milList}
+                    emergencies={emergencies}
                     error={flights.error}
                     updatedAt={flights.updatedAt}
                     loading={flights.loading}
@@ -666,6 +830,8 @@ export default function Dashboard() {
                     quakes={quakes.data ?? []}
                     iss={iss.data}
                     space={space.data ?? { kp: null, kpTime: null, dst: null, dstTime: null }}
+                    launches={launchList}
+                    disasters={disasterList}
                     onFocus={handleFocus}
                   />
                 </Suspense>

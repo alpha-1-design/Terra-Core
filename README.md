@@ -28,6 +28,9 @@ and APK workflow use npm).
 | Layer | Source |
 | --- | --- |
 | Live aircraft | OpenSky Network (proxied via `api/flights.ts` — OpenSky blocks cross-origin browsers) |
+| Military aircraft | adsb.lol `/v2/mil` (proxied via `api/military.ts` — CORS + volunteer-run upstream) |
+| Emergency aircraft | derived client-side from OpenSky squawks 7500/7600/7700 + the adsb.lol `emergency` flag (no extra feed) |
+| Global disaster alerts | GDACS, UN OCHA / EC JRC — quakes, cyclones, floods, volcanoes, wildfires (proxied via `api/disasters.ts`) |
 | Seismic events | USGS Earthquake Hazards (past 24h) |
 | ISS position | WhereTheISS.at |
 | Weather / air quality / solar | Open-Meteo + EPA AQI |
@@ -39,9 +42,11 @@ and APK workflow use npm).
 | Live CCTV cameras | NASA TV mission feed + always-on HLS reference streams |
 | Live wildfire heat | NASA GIBS GOES-East / GOES-West ABI Fire Temperature (Americas) |
 | Live satellite positions | Celestrak TLEs, orbit-propagated (proxied via `api/satellites.ts`) |
+| Upcoming orbital launches | The Space Devs Launch Library 2 (proxied via `api/launches.ts` — CORS + 15 req/hr limit) |
 | Internet radio | radio-browser.info (community directory) |
 | World news | GDELT Project (open, proxied) · GNews API (keyed) · Google News RSS (keyless fallback) |
 | Satellite imagery / country shapes | ESRI World Imagery / Natural Earth |
+| Photoreal 3D globe (optional) | Google Photorealistic 3D Tiles via Cesium ion + CesiumJS (optional feature, requires Cesium ion token configuration) |
 
 Weather probes anywhere: pick any of the 196 embedded countries (conditions
 at the capital), use your device location, search a city, or click any point
@@ -51,8 +56,8 @@ OpenStreetMap Nominatim.
 ## Local development
 
 ```bash
-bun install
-bun run dev
+npm ci --legacy-peer-deps
+npm run dev
 ```
 
 ## Console extras
@@ -65,9 +70,17 @@ bun run dev
 - **CCTV patrol mode + picture-in-picture** — auto-cycle cameras, or detach
   the player into a floating window
 - **Weather compare** — live conditions for two places side by side
-- **Fire / satellite map-globe toggles** — GOES fire-temperature overlay on
-  the map; live-propagated satellite swarm on the globe (needs the Vercel
-  proxy for Celestrak CORS)
+- **Fire / satellite / launch / military / hazard map-globe toggles** — GOES
+  fire-temperature overlay on the map; live-propagated satellite swarm, upcoming
+  orbital launch pads, military aircraft contacts and GDACS disaster alerts on
+  the globe (needs the Vercel proxies for Celestrak CORS, the Launch Library 2
+  rate limit, the adsb.lol CORS relay and the GDACS relay)
+- **Emergency-squawk watch** — any aircraft broadcasting 7500 / 7600 / 7700 (or
+  flagging an ADS-B emergency) gets a pulsing red ring on the globe, a beacon on
+  the map and a red `EMERG` entry in the flights panel
+- **Photoreal 3D globe** — switch the globe to **Photoreal 3D** to render Google
+  Photorealistic 3D Tiles (real buildings and terrain) through CesiumJS, with the
+  live layers overlaid as points. (Optional feature — see the Docs page for setup)
 
 ## Android APK (Capacitor)
 
@@ -79,18 +92,18 @@ WebView that loads the hosted site from Vercel
 (`server.url` in `capacitor.config.ts`). Users install the APK once and get
 whatever the website shows that day — pushes to `main` update the site, and
 the app follows automatically. No APK reinstalls when the frontend changes.
-As a bonus, relative `/api/*` proxy calls (flights, news, satellites)
-resolve to the same Vercel origin, so proxied feeds work inside the app too.
+As a bonus, relative `/api/*` proxy calls (flights, military, news,
+satellites, launches) resolve to the same Vercel origin, so proxied feeds work
+inside the app too.
 The trade-off is that live data requires a connection.
 
 - `android/` — generated Capacitor project (`appId com.terra.core`)
 - `.github/workflows/build-apk.yml` — builds **debug + signed release APKs**
   on every push to `main` (and on `v*.*.*` tags), uploading both as
   artifacts and attaching them to tag releases
-- The app opens in a **desktop-style viewport** (1200px-wide, scaled to fit)
-  for the full globe + side-panel layout on phones; a **Desktop/Mobile**
-  toggle in the console header switches layouts like a browser's
-  "desktop site" and remembers the choice per device
+- The app opens in the **mobile layout**; a **Desktop/Mobile** toggle in the
+  console header switches to the desktop-site viewport (1200px-wide, scaled
+  to fit) like a browser's "desktop site" and remembers the choice per device
 - Rebuild the shell only when the native wrapper changes (e.g. new
   Capacitor plugin, a new app icon, or a moved Vercel domain)
 
@@ -190,6 +203,36 @@ environment variable and is never shipped to the browser:
 **Extending the layer:** add a new keyed service by dropping a small function
 in `api/` that reads `process.env.YOUR_KEY`, proxies the upstream call, and
 returns JSON. Update the README table so operators know which env var to set.
+
+### Optional: photoreal 3D globe (`Config`)
+
+Unlike `NEWS_API_KEY`, this one is **client-side and therefore public** — Vite
+inlines every `VITE_*` variable into the shipped JavaScript, because the browser
+needs the token to request tiles. That is exactly how Cesium ion tokens are
+meant to be used; the security boundary is the token's **Allowed origins** list,
+not secrecy.
+
+1. Create a free account at [ion.cesium.com/signup](https://ion.cesium.com/signup)
+   and a token at [ion.cesium.com/tokens](https://ion.cesium.com/tokens).
+2. Edit that token and add your origins — e.g. `https://<your-app>.vercel.app`
+   and `http://localhost:5173` (Vite dev). Add Vercel preview domains if you
+   want previews to render photoreal tiles too.
+3. Vercel → **Settings → Environment Variables** → add `Config`
+   for **Production, Preview and Development**, then **redeploy**: Vite inlines
+   the value at build time, so an existing deployment will not pick it up.
+4. Locally, copy `.env.example` to `.env.local` (already gitignored) and set it.
+
+Without the token everything still works — the **Photoreal 3D** control simply
+links to `ion.cesium.com/tokens` instead of switching modes.
+
+### Cesium static assets
+
+Cesium's `Workers/`, `Assets/`, `Widgets/` and `ThirdParty/` trees cannot be
+bundled and must be served as loose files. Rather than committing ~7MB to
+`public/`, the `cesiumStaticAssets()` plugin in `vite.config.ts` serves them from
+`node_modules` in dev (`/cesium/*`) and copies them into `dist/cesium/` at build
+time. `vercel.json` excludes `cesium/` from the SPA rewrite so those files
+resolve instead of falling through to `index.html`.
 
 ## SEO & sharing
 
