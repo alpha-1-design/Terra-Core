@@ -204,7 +204,7 @@ environment variable and is never shipped to the browser:
 in `api/` that reads `process.env.YOUR_KEY`, proxies the upstream call, and
 returns JSON. Update the README table so operators know which env var to set.
 
-### Optional: photoreal 3D globe (`Config`)
+### Optional: photoreal 3D globe (`VITE_CESIUM_ION_TOKEN`)
 
 Unlike `NEWS_API_KEY`, this one is **client-side and therefore public** — Vite
 inlines every `VITE_*` variable into the shipped JavaScript, because the browser
@@ -217,7 +217,7 @@ not secrecy.
 2. Edit that token and add your origins — e.g. `https://<your-app>.vercel.app`
    and `http://localhost:5173` (Vite dev). Add Vercel preview domains if you
    want previews to render photoreal tiles too.
-3. Vercel → **Settings → Environment Variables** → add `Config`
+3. Vercel → **Settings → Environment Variables** → add `VITE_CESIUM_ION_TOKEN`
    for **Production, Preview and Development**, then **redeploy**: Vite inlines
    the value at build time, so an existing deployment will not pick it up.
 4. Locally, copy `.env.example` to `.env.local` (already gitignored) and set it.

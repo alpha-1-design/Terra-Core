@@ -9,6 +9,7 @@ import {
   MonitorPlay,
   Plane,
   Radar,
+  Rocket,
   Satellite,
   Search,
   Signal,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import HeroGlobe from "@/components/landing/HeroGlobe";
 import { fetchIss, fetchQuakes, fetchSpaceWeather } from "@/lib/monitor/api/events";
 import { fetchFlights } from "@/lib/monitor/api/flights";
 import {
@@ -135,6 +137,22 @@ const FEATURES = [
     copy: "Public live cameras from cities around the world pinned straight onto the globe — plus always-on reference streams for instant playback in the console.",
     source: "Public camera networks",
   },
+  {
+    n: "08",
+    color: "#ff9d00",
+    icon: Crosshair,
+    title: "Military & Emergency Airspace",
+    copy: "Every military aircraft adsb.lol is tracking, drawn as heading-oriented darts — plus an alert watch that lights up any transponder squawking 7500 / 7600 / 7700.",
+    source: "adsb.lol",
+  },
+  {
+    n: "09",
+    color: "#b14cff",
+    icon: Rocket,
+    title: "Disasters & Launch Windows",
+    copy: "Global multi-hazard alerts from GDACS — earthquakes, tropical cyclones, floods, volcanoes and wildfires — beside the next orbital launch windows worldwide.",
+    source: "GDACS · Launch Library 2",
+  },
 ];
 
 const SOURCES = [
@@ -148,6 +166,9 @@ const SOURCES = [
   "OpenStreetMap",
   "Nominatim",
   "WhereTheISS",
+  "adsb.lol",
+  "GDACS (UN OCHA)",
+  "Launch Library 2",
   "GDELT",
   "GNews",
   "Google News",
@@ -164,6 +185,10 @@ const MARQUEE = [
   "LIVE CCTV CAMERAS",
   "PRECIPITATION RADAR",
   "WORLD NEWS WIRE",
+  "MILITARY AIRSPACE",
+  "EMERGENCY SQUAWK WATCH",
+  "GLOBAL DISASTER ALERTS",
+  "ORBITAL LAUNCH WINDOWS",
   "ANDROID APK READY",
   "ANY CITY ON EARTH",
 ];
@@ -189,6 +214,10 @@ export default function Landing() {
     "[RADAR] 24 frames buffered · animating",
     "[TV] 18 broadcast markets indexed",
     "[CCTV] public cameras pinned to the globe · live in the console",
+    "[MIL] military airspace · adsb.lol live traces",
+    "[SQUAWK] 7500 / 7600 / 7700 emergency watch armed",
+    "[GDACS] global disaster alerts · UN OCHA / EC JRC",
+    "[LAUNCH] next orbital windows · Launch Library 2",
     "[NEWS] world headlines · open GDELT / keyed GNews / public RSS",
   ];
 
@@ -257,10 +286,12 @@ export default function Landing() {
             </h1>
 
             <p className="mt-6 max-w-xl font-sans text-base leading-relaxed text-ink-soft sm:text-lg">
-              A real-time command console over the entire Earth —              satellite imagery, every aircraft in the sky, weather and air quality,
-              seismic events, space weather, live TV, public CCTV cameras and
-              precipitation radar — all rendered on a real 3D demographic globe.
-              Zoom to any country or city. Go anywhere, virtually.
+              A real-time command console over the entire Earth — satellite
+              imagery, every aircraft in the sky, military and emergency
+              airspace, weather and air quality, seismic events, space weather,
+              global disaster alerts and orbital launch windows — all rendered
+              on a real 3D globe. Zoom to any country or city. Go anywhere,
+              virtually.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -342,6 +373,9 @@ export default function Landing() {
           </motion.div>
         </div>
       </section>
+
+      {/* ── Live globe ─────────────────────────────────── */}
+      <HeroGlobe />
 
       {/* ── Marquee ────────────────────────────────────── */}
       <div className="flex h-9 items-center overflow-hidden border-b-2 border-ink bg-ink text-paper">

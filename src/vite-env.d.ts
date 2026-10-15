@@ -6,7 +6,7 @@ interface ImportMetaEnv {
    * "Photoreal 3D" globe mode. Vite inlines VITE_* into the public bundle, so
    * the token is not secret; restrict it by Allowed origins in ion.cesium.com.
    */
-  readonly Config?: string;
+  readonly VITE_CESIUM_ION_TOKEN?: string;
 }
 
 interface ImportMeta {

@@ -337,7 +337,7 @@ export default function Docs() {
             <p className="mt-4">
               One exception is <b>client-side by design</b>:{" "}
               <span className="font-mono text-[11px] font-semibold">
-                Config
+                VITE_CESIUM_ION_TOKEN
               </span>
               , which unlocks the <b>Photoreal 3D</b> globe mode. Vite inlines
               every <span className="font-mono">VITE_*</span> variable into the

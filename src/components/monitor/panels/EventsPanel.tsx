@@ -1,17 +1,22 @@
 import { fmtNum, timeAgo, timeStr } from "@/lib/monitor/format";
 import type {
+  Disaster,
   FocusTarget,
   IssState,
+  Launch,
   Quake,
   SpaceWeather,
 } from "@/lib/monitor/types";
-import { Activity, Globe2, Satellite, Zap } from "lucide-react";
+import { alertColor, DISASTER_GLYPH, DISASTER_LABEL, disasterRank, disasterSeverity } from "@/lib/monitor/disasters";
+import { Activity, AlertTriangle, Globe2, Rocket, Satellite, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface EventsPanelProps {
   quakes: Quake[];
   iss: IssState | null;
   space: SpaceWeather;
+  launches: Launch[];
+  disasters: Disaster[];
   onFocus: (t: FocusTarget) => void;
 }
 
@@ -39,9 +44,12 @@ export default function EventsPanel({
   quakes,
   iss,
   space,
+  launches,
+  disasters,
   onFocus,
 }: EventsPanelProps) {
   const top = quakes.slice(0, 14);
+  const hazards = [...disasters].sort((a, b) => disasterRank(a) - disasterRank(b)).slice(0, 24);
 
   /* Relative timestamps + hourly-count update off the render path. */
   const [labels, setLabels] = useState<
@@ -136,6 +144,113 @@ export default function EventsPanel({
         </button>
       </div>
 
+      {/* Upcoming orbital launches — collapsible so it never crowds the
+          24h seismic feed on a phone-sized panel. */}
+      <details className="border-b-2 border-ink">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 [&::-webkit-details-marker]:hidden">
+          <span className="flex items-center gap-2">
+            <Rocket className="size-4" />
+            <span className="nb-label-ink">Missions // upcoming</span>
+          </span>
+          <span className="nb-chip">{launches.length}</span>
+        </summary>
+        {launches.length === 0 ? (
+          <div className="border-t-2 border-ink px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            No upcoming launches
+          </div>
+        ) : (
+          <div className="max-h-56 overflow-y-auto border-t-2 border-ink">
+            {launches.slice(0, 12).map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() =>
+                  onFocus({
+                    id: l.id,
+                    kind: "point",
+                    lat: l.lat,
+                    lng: l.lng,
+                    label: l.name,
+                  })
+                }
+                className="flex w-full items-center gap-2 border-b border-ink/15 px-3 py-2 text-left transition-colors hover:bg-cobalt/10 active:bg-cobalt/20"
+              >
+                <span className="flex h-8 w-10 shrink-0 items-center justify-center border-2 border-ink bg-cobalt font-mono text-[10px] font-bold text-white">
+                  {l.status.slice(0, 3).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-sans text-xs font-semibold leading-tight">
+                    {l.name}
+                  </span>
+                  <span className="block font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                    {l.provider} · {l.pad}
+                  </span>
+                </span>
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                  {l.net ? l.net.slice(5, 16).replace("T", " ") : "TBD"}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </details>
+
+      {/* Global disaster alerts — GDACS (UN OCHA / EC JRC). Colour = alert
+           level, glyph = hazard type. Collapsed by default to keep the seismic
+           feed primary. */}
+      <details className="border-b-2 border-ink">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 [&::-webkit-details-marker]:hidden">
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="size-4" />
+            <span className="nb-label-ink">Alerts // GDACS</span>
+          </span>
+          <span className="nb-chip">{disasters.length}</span>
+        </summary>
+        {hazards.length === 0 ? (
+          <div className="border-t-2 border-ink px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            No active global alerts
+          </div>
+        ) : (
+          <div className="max-h-56 overflow-y-auto border-t-2 border-ink">
+            {hazards.map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() =>
+                  onFocus({
+                    id: d.id,
+                    kind: "point",
+                    lat: d.lat,
+                    lng: d.lng,
+                    label: `${DISASTER_LABEL[d.kind]} · ${d.country || d.alertLevel}`,
+                  })
+                }
+                className="flex w-full items-center gap-2 border-b border-ink/15 px-3 py-2 text-left transition-colors hover:bg-alert/10 active:bg-alert/20"
+              >
+                <span
+                  className="flex h-8 w-10 shrink-0 items-center justify-center border-2 border-ink font-mono text-[13px] font-bold text-white"
+                  style={{ background: alertColor(d.alertLevel) }}
+                >
+                  {DISASTER_GLYPH[d.kind]}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-sans text-xs font-semibold leading-tight">
+                    {d.title}
+                  </span>
+                  <span className="block font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+                    {DISASTER_LABEL[d.kind]} · {disasterSeverity(d)}
+                    {d.country ? ` · ${d.country}` : ""}
+                  </span>
+                </span>
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                  {d.fromDate ? d.fromDate.slice(5, 16).replace("T", " ") : ""}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </details>
+
       {active > 0 && (
         <div className="border-b-2 border-ink bg-alert px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white">
           ⚠ {active} quake{active > 1 ? "s" : ""} in the last hour
@@ -185,7 +300,7 @@ export default function EventsPanel({
       </div>
       <div className="border-t-2 border-ink bg-muted px-3 py-1.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
         <span className="flex items-center gap-1">
-          <Globe2 className="size-3" /> USGS · NOAA SWPC · WhereTheISS
+          <Globe2 className="size-3" /> USGS · NOAA SWPC · WhereTheISS · TheSpaceDevs LL2 · GDACS
         </span>
       </div>
     </div>

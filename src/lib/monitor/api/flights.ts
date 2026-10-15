@@ -30,6 +30,7 @@ function parseStates(json: { states?: (unknown[] | null)[] }): Flight[] {
       velocity: r[9] as number | null,
       trueTrack: r[10] as number | null,
       verticalRate: r[11] as number | null,
+      squawk: (r[14] as string | null) ?? null,
       onGround,
       lastContact: (r[4] as number) ?? 0,
     });

@@ -33,11 +33,11 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "What is the Photoreal 3D globe?",
-    a: "A second globe renderer behind the 'Photoreal 3D' control in the console. It streams Google Photorealistic 3D Tiles through CesiumJS — real satellite-graded buildings and terrain — with the same live layers (aircraft, quakes, disasters, launches, satellites, aurora) overlaid as points. It's optional and lazy-loaded: it needs a free Cesium ion token (Config, see the docs) and only downloads when you switch to it.",
+    a: "A second globe renderer behind the 'Photoreal 3D' control in the console. It streams Google Photorealistic 3D Tiles through CesiumJS — real satellite-graded buildings and terrain — with the same live layers (aircraft, quakes, disasters, launches, satellites, aurora) overlaid as points. It's optional and lazy-loaded: it needs a free Cesium ion token (VITE_CESIUM_ION_TOKEN, see the docs) and only downloads when you switch to it.",
   },
   {
     q: "Do I need an API key for anything?",
-    a: "No — everything works out of the box. Two optional upgrades: a NEWS_API_KEY (in Vercel → Settings → Environment Variables) upgrades the news feed to the keyed GNews API, and a Config unlocks the Photoreal 3D globe. Without them the public fallbacks keep working.",
+    a: "No — everything works out of the box. Two optional upgrades: a NEWS_API_KEY (in Vercel → Settings → Environment Variables) upgrades the news feed to the keyed GNews API, and a VITE_CESIUM_ION_TOKEN unlocks the Photoreal 3D globe. Without them the public fallbacks keep working.",
   },
   {
     q: "Where is my watchlist stored?",

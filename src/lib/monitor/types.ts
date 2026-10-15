@@ -11,6 +11,7 @@ export interface Flight {
   velocity: number | null; // m/s
   trueTrack: number | null; // degrees
   verticalRate: number | null; // m/s
+  squawk: string | null; // transponder code; 7500/7600/7700 = emergency
   onGround: boolean;
   lastContact: number; // unix seconds
 }
@@ -167,4 +168,67 @@ export interface Satellite {
   lat: number;
   lng: number;
   altKm: number;
+}
+
+/** An upcoming orbital launch (Launch Library 2 / thespacedevs). */
+export interface Launch {
+  id: string;
+  name: string;
+  net: string; // ISO 8601 "no earlier than" time
+  status: string; // status abbreviation, e.g. "Go"
+  provider: string; // launch service provider
+  pad: string; // pad name
+  location: string; // pad location (site / region)
+  lat: number;
+  lng: number;
+}
+
+/** A military aircraft track (adsb.lol `/v2/mil`), normalized to SI units. */
+export interface MilitaryFlight {
+  icao24: string; // transponder hex
+  callsign: string;
+  type: string; // ICAO type designator, e.g. "C130"
+  reg: string; // registration / tail number
+  lat: number;
+  lng: number;
+  altM: number | null; // barometric altitude, meters
+  spdMs: number | null; // ground speed, m/s
+  track: number | null; // true track, degrees clockwise from north
+  onGround: boolean;
+  squawk: string | null;
+  emergency: string | null; // adsb.lol emergency state, e.g. "general"
+  seen: number; // seconds since the last message
+}
+
+/** An aircraft broadcasting an emergency (squawk 7500/7600/7700 or ADS-B flag). */
+export interface EmergencyContact {
+  id: string; // transponder hex
+  callsign: string;
+  kind: "civil" | "military";
+  lat: number;
+  lng: number;
+  altM: number | null;
+  spdMs: number | null;
+  squawk: string | null;
+  reason: string; // human label, e.g. "GENERAL EMERGENCY"
+}
+
+export type DisasterKind = "EQ" | "TC" | "FL" | "VO" | "WF";
+
+/** A current GDACS global disaster alert (UN OCHA / EC JRC). */
+export interface Disaster {
+  id: string;
+  kind: DisasterKind;
+  title: string;
+  country: string;
+  lat: number;
+  lng: number;
+  severity: number | null;
+  severityUnit: string;
+  severityText: string;
+  alertLevel: "Green" | "Orange" | "Red";
+  alertScore: number;
+  fromDate: string;
+  toDate: string;
+  reportUrl: string | null;
 }

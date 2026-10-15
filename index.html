@@ -80,9 +80,9 @@
 <body>
   <div id="root"></div>
   <script>
-  // Desktop site view — the APK defaults to the desktop-style layout (like a
-  // browser's "request desktop site"); the preference persists per device in
-  // localStorage and can be flipped at any time from the console header.
+  // Viewport: the APK (native) defaults to the MOBILE layout. The desktop-
+  // style "request desktop site" view is opt-in; the preference persists per
+  // device in localStorage and can be flipped from the console header.
   //
   // The scale MUST be computed from the device's actual width, not a fixed
   // guess: 1200px layout / 0.5 scale only produces a screen that exactly
@@ -92,7 +92,6 @@
   // real desktop-site toggle (e.g. a browser's) always fits the full width
   // regardless of device, because it scales to the *measured* viewport.
   var viewportMeta = document.getElementById('viewport-meta');
-  var isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   var DESKTOP_LAYOUT_WIDTH = 1200;
   var MOBILE_VIEWPORT = 'width=device-width, initial-scale=1.0, user-scalable=yes';
 
@@ -107,7 +106,7 @@
 
   var stored = null;
   try { stored = localStorage.getItem('terra-desktop-view'); } catch (e) { /* storage unavailable */ }
-  var desktop = stored === 'true' || (stored === null && isNative);
+  var desktop = stored === 'true';
 
   function applyViewport(isDesktop) {
     if (!viewportMeta) return;

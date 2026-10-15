@@ -109,8 +109,8 @@ function PaneLoading({ label }: { label: string }) {
 
 /* Optional Cesium ion token — when present the operator can switch the globe
    to Google Photorealistic 3D Tiles. Absent in local dev unless .env.local is
-   set; absent on Vercel until Config is added and redeployed. */
-const CESIUM_TOKEN = import.meta.env.Config ?? "";
+   set; absent on Vercel until VITE_CESIUM_ION_TOKEN is added and redeployed. */
+const CESIUM_TOKEN = import.meta.env.VITE_CESIUM_ION_TOKEN ?? "";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -578,7 +578,7 @@ export default function Dashboard() {
                 target="_blank"
                 rel="noreferrer"
                 className="border-2 border-ink bg-chalk px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest text-muted-foreground transition-all hover:bg-[#00c2d1]/25"
-                title="Add Config to enable the photoreal globe"
+                title="Add VITE_CESIUM_ION_TOKEN to enable the photoreal globe"
               >
                 Photoreal 3D ⧉
               </a>

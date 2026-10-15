@@ -1,5 +1,6 @@
 import Globe from "globe.gl";
 import { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
 import {
   fetchCountriesGeo,
   fetchPopulatedPlaces,
@@ -10,15 +11,20 @@ import {
 import type {
   AuroraState,
   City,
+  Disaster,
+  EmergencyContact,
   Flight,
   FocusTarget,
   ImageryMode,
   IssState,
+  Launch,
+  MilitaryFlight,
   Quake,
   Satellite,
   TvChannel,
 } from "@/lib/monitor/types";
 import { subSolarPoint, terminatorCurve, type TerminatorPoint } from "@/lib/monitor/sun";
+import { alertColor, DISASTER_LABEL } from "@/lib/monitor/disasters";
 import { CCTV_DEMO_STREAMS } from "@/lib/monitor/api/cctv";
 import type { CctvChannel } from "@/lib/monitor/api/cctv";
 
@@ -32,6 +38,10 @@ interface GlobeViewProps {
   aurora: AuroraState | null;
   auroraEnabled: boolean;
   satellites: Satellite[];
+  launches: Launch[];
+  military: MilitaryFlight[];
+  emergencies: EmergencyContact[];
+  disasters: Disaster[];
   focus: FocusTarget | null;
   onSelectPoint: (lat: number, lng: number) => void;
 }
@@ -63,13 +73,28 @@ interface SatPoint {
   kind: "sat";
   sat: Satellite;
 }
+interface LaunchPoint {
+  kind: "launch";
+  launch: Launch;
+}
+interface MilPoint {
+  kind: "mil";
+  mil: MilitaryFlight;
+}
+interface DisasterPoint {
+  kind: "disaster";
+  disaster: Disaster;
+}
 type GlobePoint =
   | FlightPoint
   | QuakePoint
   | AuroraPoint
   | SunPoint
   | CctvPoint
-  | SatPoint;
+  | SatPoint
+  | LaunchPoint
+  | MilPoint
+  | DisasterPoint;
 
 interface HexBinShim {
   points: unknown[];
@@ -82,6 +107,7 @@ interface RingDatum {
   lng: number;
   km: number;
   v: number;
+  color: string;
 }
 
 const DAY_MAX_LEVEL = 8;
@@ -158,6 +184,10 @@ export default function GlobeView({
   aurora,
   auroraEnabled,
   satellites,
+  launches,
+  military,
+  emergencies,
+  disasters,
   focus,
   onSelectPoint,
 }: GlobeViewProps) {
@@ -330,8 +360,21 @@ export default function GlobeView({
       cctv: ch,
     }));
     const satPts: SatPoint[] = satellites.map((sat) => ({ kind: "sat", sat }));
-    return [...pts, ...qpts, ...auro, ...sunPt, ...cctvPts, ...satPts];
-  }, [flights, quakes, aurora, auroraEnabled, satellites]);
+    const launchPts: LaunchPoint[] = launches.map((launch) => ({ kind: "launch", launch }));
+    const milPts: MilPoint[] = military.map((mil) => ({ kind: "mil", mil }));
+    const disPts: DisasterPoint[] = disasters.map((disaster) => ({ kind: "disaster", disaster }));
+    return [
+      ...pts,
+      ...qpts,
+      ...auro,
+      ...sunPt,
+      ...cctvPts,
+      ...satPts,
+      ...launchPts,
+      ...milPts,
+      ...disPts,
+    ];
+  }, [flights, quakes, aurora, auroraEnabled, satellites, launches, military, disasters]);
 
   useEffect(() => {
     const g = globeRef.current;
@@ -344,6 +387,9 @@ export default function GlobeView({
         if (p.kind === "aurora") return p.aurora.lat;
         if (p.kind === "cctv") return p.cctv.lat;
         if (p.kind === "sat") return p.sat.lat;
+        if (p.kind === "launch") return p.launch.lat;
+        if (p.kind === "mil") return p.mil.lat;
+        if (p.kind === "disaster") return p.disaster.lat;
         return p.lat;
       })
       .pointLng((d: object) => {
@@ -353,6 +399,9 @@ export default function GlobeView({
         if (p.kind === "aurora") return p.aurora.lng;
         if (p.kind === "cctv") return p.cctv.lng;
         if (p.kind === "sat") return p.sat.lng;
+        if (p.kind === "launch") return p.launch.lng;
+        if (p.kind === "mil") return p.mil.lng;
+        if (p.kind === "disaster") return p.disaster.lng;
         return p.lng;
       })
       .pointColor((d: object) => {
@@ -365,6 +414,9 @@ export default function GlobeView({
         }
         if (p.kind === "cctv") return "#1e90ff";
         if (p.kind === "sat") return "#141414";
+        if (p.kind === "launch") return "#b14cff";
+        if (p.kind === "mil") return "#ff9d00";
+        if (p.kind === "disaster") return alertColor(p.disaster.alertLevel);
         return "#ff4d00";
       })
       .pointAltitude((d: object) => {
@@ -377,6 +429,12 @@ export default function GlobeView({
         if (p.kind === "aurora") return 0.022;
         if (p.kind === "cctv") return 0.03;
         if (p.kind === "sat") return 0.0115;
+        if (p.kind === "launch") return 0.02;
+        if (p.kind === "mil") {
+          const alt = p.mil.altM ?? 0;
+          return 0.012 + Math.min(0.055, (alt / 12000) * 0.05);
+        }
+        if (p.kind === "disaster") return 0.018;
         return 0.015;
       })
       .pointRadius((d: object) => {
@@ -389,6 +447,9 @@ export default function GlobeView({
         }
         if (p.kind === "cctv") return 0.25;
         if (p.kind === "sat") return 0.14;
+        if (p.kind === "launch") return 0.42;
+        if (p.kind === "mil") return 0.22;
+        if (p.kind === "disaster") return 0.42;
         return 0.85;
       })
       .pointLabel((d: object) => {
@@ -420,6 +481,32 @@ export default function GlobeView({
         if (p.kind === "sat") {
           const s = p.sat;
           return `<div class="nb-tip"><b>${s.name}</b><br/>ALT ${fmt(s.altKm)} KM · TLE propagated</div>`;
+        }
+        if (p.kind === "launch") {
+          const l = p.launch;
+          const when = l.net ? `${l.net.slice(0, 16).replace("T", " ")}Z` : "TBD";
+          return `<div class="nb-tip"><b>${l.name}</b><br/>${l.status} · ${l.provider}<br/>${l.pad}${
+            l.location ? ` — ${l.location}` : ""
+          }<br/>T-0 ${when}</div>`;
+        }
+        if (p.kind === "mil") {
+          const m = p.mil;
+          return `<div class="nb-tip"><b>${m.callsign} · ${m.type}</b><br/>MILITARY · ${
+            m.reg || m.icao24.toUpperCase()
+          }<br/>ALT ${fmt((m.altM ?? 0) * 3.28084)} FT · SPD ${fmt(
+            (m.spdMs ?? 0) * 1.94384,
+          )} KT<br/>TRK ${fmt(m.track ?? 0)}° · ${m.squawk ?? "——"}</div>`;
+        }
+        if (p.kind === "disaster") {
+          const d = p.disaster;
+          const sev =
+            d.severity !== null
+              ? `${fmt(d.severity, 1)}${d.severityUnit ? ` ${d.severityUnit}` : ""}`
+              : d.severityText || "—";
+          const when = d.fromDate ? `${d.fromDate.slice(0, 16).replace("T", " ")}Z` : "—";
+          return `<div class="nb-tip"><b>${d.title}</b><br/>${DISASTER_LABEL[d.kind]} · ${d.alertLevel}${
+            d.country ? ` · ${d.country}` : ""
+          }<br/>${sev}<br/>since ${when}</div>`;
         }
         return `<div class="nb-tip"><b>SUB-SOLAR POINT</b><br/>Sun directly overhead · ${fmt(
           Math.abs(p.lat),
@@ -472,22 +559,86 @@ export default function GlobeView({
     return () => clearInterval(t);
   }, []);
 
-  /* ISS pulsing ring */
+  /* ISS + emergency-squawk pulsing rings */
   useEffect(() => {
     const g = globeRef.current;
     if (!g) return;
-    const ringData: RingDatum[] = iss
-      ? [{ lat: iss.lat, lng: iss.lng, km: iss.altitudeKm, v: iss.velocityKmH }]
-      : [];
+    const ringData: RingDatum[] = [
+      ...(iss
+        ? [
+            {
+              lat: iss.lat,
+              lng: iss.lng,
+              km: iss.altitudeKm,
+              v: iss.velocityKmH,
+              color: "#ffd400",
+            },
+          ]
+        : []),
+      ...emergencies.map((e) => ({ lat: e.lat, lng: e.lng, km: 0, v: 0, color: "#ff2e2e" })),
+    ];
     g.ringsData(ringData)
       .ringLat((d: object) => (d as RingDatum).lat)
       .ringLng((d: object) => (d as RingDatum).lng)
-      .ringColor(() => "#ff2e2e")
+      .ringColor((d: object) => (d as RingDatum).color)
       .ringMaxRadius(2.2)
       .ringPropagationSpeed(1.6)
       .ringRepeatPeriod(1300)
       .ringAltitude(0.02);
-  }, [iss]);
+  }, [iss, emergencies]);
+
+  /* Military aircraft as heading-oriented 3D cones — the globe gains a real
+     aircraft layer that points where each contact is actually flying. */
+  useEffect(() => {
+    const g = globeRef.current;
+    if (!g) return;
+
+    const arrows = military.map((m) => ({
+      lat: m.lat,
+      lng: m.lng,
+      alt:
+        (m.altM === null ? 0.006 : 0.012 + Math.min(0.055, (m.altM / 12000) * 0.05)) + 0.004,
+      track: m.track ?? 0,
+    }));
+
+    // A 4-sided cone (dart) pointing along local +Z, shared across all meshes.
+    const geometry = new THREE.ConeGeometry(0.3, 1.2, 4);
+    geometry.rotateX(Math.PI / 2);
+    const material = new THREE.MeshBasicMaterial({ color: "#ff9d00" });
+
+    const dLat = 0.04;
+    const dLng = 0.04;
+
+    g.customLayerData(arrows)
+      .customThreeObject(() => new THREE.Mesh(geometry, material))
+      .customThreeObjectUpdate((obj: object, d: object) => {
+        const a = d as (typeof arrows)[number];
+        const mesh = obj as THREE.Mesh;
+        const here = g.getCoords(a.lat, a.lng, a.alt);
+        const pos = new THREE.Vector3(here.x, here.y, here.z);
+        // Local tangent frame: up = radial, north/east from finite differences.
+        const up = pos.clone().normalize();
+        const pn = g.getCoords(a.lat + dLat, a.lng, a.alt);
+        const pe = g.getCoords(a.lat, a.lng + dLng, a.alt);
+        const north = new THREE.Vector3(pn.x, pn.y, pn.z).sub(pos).normalize();
+        const east = new THREE.Vector3(pe.x, pe.y, pe.z).sub(pos).normalize();
+        const h = (a.track * Math.PI) / 180;
+        const forward = north
+          .clone()
+          .multiplyScalar(Math.cos(h))
+          .add(east.clone().multiplyScalar(Math.sin(h)))
+          .normalize();
+        const right = new THREE.Vector3().crossVectors(up, forward).normalize();
+        mesh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, forward));
+        mesh.position.copy(pos);
+      });
+
+    return () => {
+      g.customLayerData([]);
+      geometry.dispose();
+      material.dispose();
+    };
+  }, [military]);
 
   /* Fly-to */
   useEffect(() => {

@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api/|assets/|favicon).*)",
+      "source": "/((?!api/|assets/|cesium/|favicon).*)",
       "destination": "/index.html"
     }
   ]
