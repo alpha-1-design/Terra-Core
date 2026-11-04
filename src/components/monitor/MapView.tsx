@@ -204,6 +204,20 @@ function FlyToController({ focus }: { focus: FocusTarget | null }) {
   return null;
 }
 
+/* Leaflet only re-measures on window resize; the right column is now a
+   resizable panel, so watch the container and invalidate on size changes. */
+function ResizeController() {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [map]);
+  return null;
+}
+
 export default function MapView({
   baseLayer,
   radar,
@@ -240,6 +254,7 @@ export default function MapView({
       scrollWheelZoom
       zoomControl={false}
     >
+      <ResizeController />
       <TileLayer
         attribution={baseLayer === "streets" ? OSM_ATTR : ESRI_ATTR}
         url={baseLayer === "streets" ? OSM_URL : ESRI_URL}
