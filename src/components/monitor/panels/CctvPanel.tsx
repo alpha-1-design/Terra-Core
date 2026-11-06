@@ -14,46 +14,53 @@ function ChannelRow({
   active: boolean;
   onPlay: (ch: TvChannel) => void;
 }) {
+  /* A <button> may not contain an <a>: nested interactive elements break
+     keyboard and screen-reader use. The row is a div with two sibling controls. */
   return (
-    <button
-      type="button"
-      onClick={() => onPlay(ch)}
-      className={`flex w-full items-center gap-2 border-b border-ink/15 px-3 py-2 text-left transition-colors ${
+    <div
+      className={`flex w-full items-center gap-2 border-b border-ink/15 px-3 py-2 transition-colors ${
         active ? "bg-volt/40" : "hover:bg-cobalt/10"
       }`}
     >
-      {ch.logo ? (
-        <img
-          src={ch.logo}
-          alt=""
-          loading="lazy"
-          className="h-8 w-8 shrink-0 border-2 border-ink bg-chalk object-contain p-0.5"
-          onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
-        />
-      ) : (
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-ink bg-ink font-mono text-[9px] font-bold text-paper">
-          CAM
+      <button
+        type="button"
+        onClick={() => onPlay(ch)}
+        aria-current={active || undefined}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
+        {ch.logo ? (
+          <img
+            src={ch.logo}
+            alt=""
+            loading="lazy"
+            className="h-8 w-8 shrink-0 border-2 border-ink bg-chalk object-contain p-0.5"
+            onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+          />
+        ) : (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-ink bg-ink font-mono text-[9px] font-bold text-paper">
+            CAM
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-sans text-xs font-semibold leading-tight">
+            {ch.name}
+          </span>
+          <span className="block truncate font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+            {ch.group ?? ch.country.toUpperCase()} · LIVE
+          </span>
         </span>
-      )}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-sans text-xs font-semibold leading-tight">
-          {ch.name}
-        </span>
-        <span className="block truncate font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-          {ch.group ?? ch.country.toUpperCase()} · LIVE
-        </span>
-      </span>
+      </button>
       <a
         href={ch.url}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
         className="border-2 border-ink bg-chalk p-1 transition-colors hover:bg-signal hover:text-white"
         title="Open stream URL"
+        aria-label={`Open ${ch.name} stream URL in a new tab`}
       >
         <ExternalLink className="size-3" />
       </a>
-    </button>
+    </div>
   );
 }
 
@@ -220,6 +227,8 @@ export default function CctvPanel({ streams, onIndex }: CctvPanelProps) {
               pipActive ? "bg-cobalt text-white" : "bg-chalk hover:bg-cobalt/20"
             }`}
             title="Picture-in-picture"
+            aria-label="Picture-in-picture"
+            aria-pressed={pipActive}
           >
             <PictureInPicture2 className="size-3.5" />
           </button>

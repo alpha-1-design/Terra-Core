@@ -34,6 +34,7 @@ function WatchCard({
             onClick={onFocus}
             className="border-2 border-ink bg-chalk p-1 transition-colors hover:bg-cobalt/20"
             title="Locate"
+            aria-label={`Locate ${name}`}
           >
             <Crosshair className="size-3" />
           </button>
@@ -42,6 +43,7 @@ function WatchCard({
             onClick={onRemove}
             className="border-2 border-ink bg-chalk p-1 transition-colors hover:bg-alert hover:text-white"
             title="Untrack"
+            aria-label={`Stop tracking ${name}`}
           >
             <Trash2 className="size-3" />
           </button>

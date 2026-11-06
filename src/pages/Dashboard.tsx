@@ -127,6 +127,13 @@ export default function Dashboard() {
   const [milEnabled, setMilEnabled] = useState(true);
   const [disastersEnabled, setDisastersEnabled] = useState(true);
   const [globeMode, setGlobeMode] = useState<"globe" | "photoreal">("globe");
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 200);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const flights = usePolling(fetchFlights, { intervalMs: FLIGHT_POLL_MS });
   const cctv = usePolling(fetchCctvStreams, { intervalMs: CCTV_POLL_MS });
   const sats = usePolling(fetchSatellites, {
@@ -402,7 +409,7 @@ export default function Dashboard() {
           <CitySearch onPick={handlePick} />
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex max-w-full flex-wrap items-center gap-2 sm:shrink-0">
           {isNative && (
             <button
               type="button"
@@ -435,6 +442,8 @@ export default function Dashboard() {
               soundOn ? "bg-volt" : "bg-chalk hover:bg-volt/30"
             }`}
             title={soundOn ? "Mute event sounds" : "Enable event sounds"}
+            aria-label="Event sounds"
+            aria-pressed={soundOn}
           >
             {soundOn ? (
               <Volume2 className="size-3.5" />
@@ -453,6 +462,8 @@ export default function Dashboard() {
                 ? "Alerts on — click to mute"
                 : "Enable quake + ISS flyover alerts"
             }
+            aria-label="Quake and ISS flyover alerts"
+            aria-pressed={alerts.enabled}
           >
             <Bell className="size-3.5" />
             {alertTotal > 0 && (
@@ -466,7 +477,7 @@ export default function Dashboard() {
           </span>
           <span className="nb-chip border-cobalt text-cobalt">
             <HardDrive className="size-3" />
-            Local mode · no sign-in
+            Local mode<span className="hidden sm:inline"> · no sign-in</span>
           </span>
         </div>
       </header>
@@ -551,7 +562,9 @@ export default function Dashboard() {
           </ChunkErrorBoundary>
 
           {/* Globe renderer + imagery + layer toggles */}
-          <div className="absolute left-2 top-2 z-10 flex flex-wrap gap-1">
+          {/* On phones the toolbar is one swipeable row (it used to wrap to three
+              rows and cover half the globe); from lg up it wraps as before. */}
+          <div className="absolute inset-x-2 top-2 z-10 flex gap-1 overflow-x-auto pb-1 pr-1 [scrollbar-width:none] [&>*]:shrink-0 [&>*]:whitespace-nowrap lg:inset-x-auto lg:left-2 lg:flex-wrap lg:overflow-visible lg:pb-0 lg:pr-0">
             <button
               type="button"
               onClick={() => setGlobeMode("globe")}
@@ -713,12 +726,13 @@ export default function Dashboard() {
 
         {/* Right column: map + panels */}
         <aside className="flex w-full shrink-0 flex-col lg:w-[440px] xl:w-[480px]">
-          <ResizablePanelGroup
-            direction="vertical"
-            className="h-[min(70vh,640px)] min-h-[480px] w-full lg:h-full lg:min-h-0"
-          >
-          <ResizablePanel defaultSize={28} minSize={15} maxSize={50}>
-          <div className="relative h-full min-h-[160px] border-b-2 border-ink">
+          {/* react-resizable-panels sets an inline `height: 100%` on the group,
+              which beats any height class on the group itself — so the
+              responsive height lives on this wrapper instead. */}
+          <div className="h-[min(75vh,680px)] min-h-[580px] w-full lg:h-auto lg:min-h-0 lg:flex-1">
+          <ResizablePanelGroup direction="vertical" className="h-full w-full">
+          <ResizablePanel defaultSize={28} minSize={18} maxSize={50}>
+          <div className="relative h-full border-b-2 border-ink">
             <ChunkErrorBoundary label="map">
               <Suspense fallback={<PaneLoading label="map" />}>
                 <MapView
@@ -920,28 +934,34 @@ export default function Dashboard() {
           </Tabs>
           </ResizablePanel>
           </ResizablePanelGroup>
+          </div>
         </aside>
       </main>
 
       {/* ── Floating navigation (mobile/tablet only — on lg the layout is
           h-screen overflow-hidden, so the window never scrolls and these
           buttons would be dead weight over the panels) ── */}
-      <div className="fixed bottom-6 right-6 z-20 flex flex-col gap-2 lg:hidden">
+      <div className="fixed bottom-4 right-4 z-20 lg:hidden">
+        {/* One button instead of two stacked ones (they covered the RADIO tab):
+            points down at the top of the page, up once you've scrolled. */}
         <button
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="border-2 border-ink bg-volt text-paper rounded-full p-2 shadow-lg hover:bg-cobalt/20 transition-colors"
-          title="Top"
+          type="button"
+          onClick={() =>
+            window.scrollTo({
+              top: scrolled ? 0 : document.body.scrollHeight,
+              behavior: "smooth",
+            })
+          }
+          className="rounded-full border-2 border-ink bg-volt p-2 text-ink shadow-lg transition-colors hover:bg-chalk"
+          title={scrolled ? "Back to top" : "Jump to bottom"}
+          aria-label={scrolled ? "Scroll to top" : "Scroll to bottom"}
         >
-          <svg className="size-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
-          </svg>
-        </button>
-        <button
-          onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}
-          className="border-2 border-ink bg-volt text-paper rounded-full p-2 shadow-lg hover:bg-cobalt/20 transition-colors"
-          title="Bottom"
-        >
-          <svg className="size-4" viewBox="0 0 24 24" fill="currentColor">
+          <svg
+            className={`size-4 transition-transform ${scrolled ? "rotate-180" : ""}`}
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden="true"
+          >
             <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
           </svg>
         </button>

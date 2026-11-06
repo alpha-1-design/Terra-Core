@@ -78,6 +78,9 @@ export default function CitySearch({ onPick }: CitySearchProps) {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.trim().length >= 3 && setOpen(true)}
           placeholder="GO ANYWHERE — city, airport, landmark…"
+          aria-label="Search for a city, airport or landmark"
+          type="search"
+          autoComplete="off"
           className="h-10 min-w-0 flex-1 bg-transparent px-3 font-mono text-xs uppercase tracking-wide outline-none placeholder:text-ink-soft/60"
         />
         {loading && (

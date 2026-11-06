@@ -51,7 +51,12 @@ export function useOtaUpdate() {
 
   const apply = useCallback((cache: CacheEntry) => {
     setCurrentVersion(cache.current);
-    const dismissed = localStorage.getItem(DISMISS_KEY);
+    let dismissed: string | null = null;
+    try {
+      dismissed = localStorage.getItem(DISMISS_KEY);
+    } catch {
+      /* storage blocked (private mode / webview policy) — treat as not dismissed */
+    }
     const available = cache.available && cache.tag && cache.htmlUrl;
     setUpdate(
       available && dismissed !== cache.tag

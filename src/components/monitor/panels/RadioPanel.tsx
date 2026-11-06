@@ -11,47 +11,54 @@ function StationRow({
   active: boolean;
   onPlay: (s: RadioStation) => void;
 }) {
+  /* A <button> may not contain an <a>: nested interactive elements break
+     keyboard and screen-reader use. The row is a div with two sibling controls. */
   return (
-    <button
-      type="button"
-      onClick={() => onPlay(s)}
-      className={`flex w-full items-center gap-2 border-b border-ink/15 px-3 py-2 text-left transition-colors ${
+    <div
+      className={`flex w-full items-center gap-2 border-b border-ink/15 px-3 py-2 transition-colors ${
         active ? "bg-verdant/25" : "hover:bg-cobalt/10"
       }`}
     >
-      {s.favicon ? (
-        <img
-          src={s.favicon}
-          alt=""
-          loading="lazy"
-          className="h-7 w-7 shrink-0 border border-ink bg-chalk object-contain p-0.5"
-          onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
-        />
-      ) : (
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center border-2 border-ink bg-ink font-mono text-[8px] font-bold text-paper">
-          FM
+      <button
+        type="button"
+        onClick={() => onPlay(s)}
+        aria-current={active || undefined}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+      >
+        {s.favicon ? (
+          <img
+            src={s.favicon}
+            alt=""
+            loading="lazy"
+            className="h-7 w-7 shrink-0 border border-ink bg-chalk object-contain p-0.5"
+            onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+          />
+        ) : (
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center border-2 border-ink bg-ink font-mono text-[8px] font-bold text-paper">
+            FM
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-sans text-xs font-semibold leading-tight">
+            {s.name}
+          </span>
+          <span className="block truncate font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+            {s.tags.split(",").filter(Boolean).slice(0, 3).join(" · ") || s.codec}{" "}
+            · {s.bitrate ? `${s.bitrate} kbps` : s.codec} · ♥ {s.votes}
+          </span>
         </span>
-      )}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-sans text-xs font-semibold leading-tight">
-          {s.name}
-        </span>
-        <span className="block truncate font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-          {s.tags.split(",").filter(Boolean).slice(0, 3).join(" · ") || s.codec}{" "}
-          · {s.bitrate ? `${s.bitrate} kbps` : s.codec} · ♥ {s.votes}
-        </span>
-      </span>
+      </button>
       <a
         href={s.url}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
         className="border-2 border-ink bg-chalk p-1 transition-colors hover:bg-signal hover:text-white"
         title="Open stream URL"
+        aria-label={`Open ${s.name} stream URL in a new tab`}
       >
         <ExternalLink className="size-3" />
       </a>
-    </button>
+    </div>
   );
 }
 

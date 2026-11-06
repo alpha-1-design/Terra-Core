@@ -516,23 +516,26 @@ export default function MapView({
         </Marker>
       ))}
 
-      {/* Attribution chips */}
-      {radarEnabled && radar && radar.frames.length > 0 && (
-        <div
-          className="pointer-events-none absolute bottom-0 right-0 z-[1000] bg-white/90 px-1 font-mono text-[9px] uppercase tracking-wider"
-          style={{ border: "1px solid #141414" }}
-        >
-          Radar © RainViewer
-        </div>
-      )}
-      {firesEnabled && firesDate && (
-        <div
-          className="pointer-events-none absolute bottom-0 left-0 z-[1000] bg-white/90 px-1 font-mono text-[9px] uppercase tracking-wider"
-          style={{ border: "1px solid #141414" }}
-        >
-          Fires © NASA GIBS GOES · {firesDate}
-        </div>
-      )}
+      {/* Data-source chips. Stacked above Leaflet's own attribution control
+          (bottom-right, up to two lines) so they never cover it. */}
+      <div className="pointer-events-none absolute bottom-8 left-1 z-[1000] flex flex-col items-start gap-1">
+        {radarEnabled && radar && radar.frames.length > 0 && (
+          <div
+            className="bg-white/90 px-1 font-mono text-[9px] uppercase tracking-wider"
+            style={{ border: "1px solid #141414" }}
+          >
+            Radar © RainViewer
+          </div>
+        )}
+        {firesEnabled && firesDate && (
+          <div
+            className="bg-white/90 px-1 font-mono text-[9px] uppercase tracking-wider"
+            style={{ border: "1px solid #141414" }}
+          >
+            Fires © NASA GIBS GOES · {firesDate}
+          </div>
+        )}
+      </div>
     </MapContainer>
   );
 }

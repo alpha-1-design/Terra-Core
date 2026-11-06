@@ -72,6 +72,7 @@ export default function CountryPicker({ onPick }: CountryPickerProps) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Filter 196 countries…"
+              aria-label="Filter countries"
               className="h-7 min-w-0 flex-1 bg-transparent font-mono text-[11px] uppercase tracking-wide outline-none placeholder:text-ink-soft/60"
             />
             <span className="shrink-0 font-mono text-[9px] text-muted-foreground">

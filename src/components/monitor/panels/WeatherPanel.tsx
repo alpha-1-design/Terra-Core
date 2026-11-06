@@ -203,6 +203,8 @@ export default function WeatherPanel({
               compareOpen ? "bg-ink text-paper" : "bg-chalk hover:bg-volt/30"
             }`}
             title="Compare with another place"
+            aria-label="Compare with another place"
+            aria-pressed={compareOpen}
           >
             <ArrowLeftRight className="size-3.5" />
           </button>
@@ -211,6 +213,7 @@ export default function WeatherPanel({
             onClick={() => refresh()}
             className="border-2 border-ink bg-chalk p-1.5 transition-colors hover:bg-volt/30"
             title="Refresh"
+            aria-label="Refresh weather"
           >
             <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -227,6 +230,7 @@ export default function WeatherPanel({
             }
             className="border-2 border-ink bg-chalk p-1.5 transition-colors hover:bg-cobalt/20"
             title="Locate on globe"
+            aria-label="Locate on globe"
           >
             <LocateFixed className="size-3.5" />
           </button>
@@ -238,6 +242,7 @@ export default function WeatherPanel({
               isWatched ? "bg-verdant text-white" : "bg-chalk hover:bg-volt/30"
             }`}
             title={isWatched ? "Tracked" : "Track location"}
+            aria-label={isWatched ? "Location is tracked" : "Track this location"}
           >
             <MapPinPlus className="size-3.5" />
           </button>

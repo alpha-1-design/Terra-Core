@@ -326,3 +326,12 @@
     color: #ff4d00;
   }
 }
+
+/* Leaflet's stock 12px attribution wraps to two or three lines in the narrow
+   right-hand column. Compact it. Deliberately unlayered: leaflet.css is
+   imported unlayered, and layered rules lose to unlayered ones. */
+.leaflet-container .leaflet-control-attribution {
+  font: 9px/1.35 "IBM Plex Mono", monospace;
+  max-width: 100%;
+  padding: 1px 4px;
+}

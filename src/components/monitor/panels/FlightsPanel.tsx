@@ -168,8 +168,15 @@ export default function FlightsPanel({
           </div>
         )}
         {flights.length === 0 && !loading && (
-          <div className="flex h-full items-center justify-center px-6 text-center font-mono text-xs text-muted-foreground">
-            No aircraft in snapshot. OpenSky updates every ~10s; waiting…
+          <div
+            role="status"
+            className={`flex h-full items-center justify-center px-6 text-center font-mono text-xs ${
+              error && !rateLimited ? "text-alert" : "text-muted-foreground"
+            }`}
+          >
+            {error && !rateLimited
+              ? `Airspace feed unavailable (${error}). Check your connection.`
+              : "No aircraft in snapshot. OpenSky updates every ~10s; waiting…"}
           </div>
         )}
         {airborne.map((f) => (
