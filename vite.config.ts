@@ -134,6 +134,9 @@ export default defineConfig({
       'react-dom/client',
       'react-router',
       'framer-motion',
+      // Lazy-loaded (City 3D). Without this, Vite discovers it on first use,
+      // re-optimizes and force-reloads the page in dev.
+      'maplibre-gl',
     ],
   },
   // Performance hints

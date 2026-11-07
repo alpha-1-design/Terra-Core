@@ -89,6 +89,7 @@ import ChunkErrorBoundary from "@/components/monitor/ChunkErrorBoundary";
  */
 const GlobeView = lazyWithRetry(() => import("@/components/monitor/GlobeView"), "globe");
 const CesiumView = lazyWithRetry(() => import("@/components/monitor/CesiumView"), "cesium");
+const CityView3D = lazyWithRetry(() => import("@/components/monitor/CityView3D"), "city3d");
 const MapView = lazyWithRetry(() => import("@/components/monitor/MapView"), "map");
 const CommandPalette = lazyWithRetry(() => import("@/components/monitor/CommandPalette"), "palette");
 const FlightsPanel = lazyWithRetry(() => import("@/components/monitor/panels/FlightsPanel"), "flights");
@@ -126,7 +127,7 @@ export default function Dashboard() {
   const [launchesEnabled, setLaunchesEnabled] = useState(true);
   const [milEnabled, setMilEnabled] = useState(true);
   const [disastersEnabled, setDisastersEnabled] = useState(true);
-  const [globeMode, setGlobeMode] = useState<"globe" | "photoreal">("globe");
+  const [globeMode, setGlobeMode] = useState<"globe" | "photoreal" | "city">("globe");
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 200);
@@ -525,7 +526,14 @@ export default function Dashboard() {
         <section className="relative h-[40vh] min-h-[260px] overflow-hidden border-b-2 border-ink lg:h-auto lg:min-h-0 lg:flex-1 lg:border-b-0 lg:border-r-2">
           <ChunkErrorBoundary label="globe">
             <Suspense fallback={<PaneLoading label="globe" />}>
-              {globeMode === "photoreal" && CESIUM_TOKEN ? (
+              {globeMode === "city" ? (
+                <CityView3D
+                  focus={focus}
+                  flights={flights.data ?? []}
+                  quakes={quakes.data ?? []}
+                  onSelectPoint={handleGlobePoint}
+                />
+              ) : globeMode === "photoreal" && CESIUM_TOKEN ? (
                 <CesiumView
                   token={CESIUM_TOKEN}
                   flights={flights.data ?? []}
@@ -577,10 +585,26 @@ export default function Dashboard() {
             >
               Globe
             </button>
-            {CESIUM_TOKEN ? (
+            <button
+              type="button"
+              onClick={() => setGlobeMode("city")}
+              aria-pressed={globeMode === "city"}
+              className={`border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
+                globeMode === "city"
+                  ? "bg-ink text-paper shadow-[2px_2px_0_0_#1e5bff]"
+                  : "bg-chalk hover:bg-cobalt/20"
+              }`}
+              title="Tilted 3D city view — buildings, terrain and satellite imagery"
+            >
+              City 3D
+            </button>
+            {/* Only offered when this deployment has it enabled — visitors never
+                see a setup prompt or a link out to a third-party token page. */}
+            {CESIUM_TOKEN && (
               <button
                 type="button"
                 onClick={() => setGlobeMode("photoreal")}
+                aria-pressed={globeMode === "photoreal"}
                 className={`border-2 border-ink px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest transition-all ${
                   globeMode === "photoreal"
                     ? "bg-ink text-paper shadow-[2px_2px_0_0_#00c2d1]"
@@ -590,16 +614,6 @@ export default function Dashboard() {
               >
                 Photoreal 3D
               </button>
-            ) : (
-              <a
-                href="https://ion.cesium.com/tokens"
-                target="_blank"
-                rel="noreferrer"
-                className="border-2 border-ink bg-chalk px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-widest text-muted-foreground transition-all hover:bg-[#00c2d1]/25"
-                title="Add VITE_CESIUM_ION_TOKEN to enable the photoreal globe"
-              >
-                Photoreal 3D ⧉
-              </a>
             )}
             {globeMode === "globe" &&
               imageryButtons.map((b) => (
@@ -616,6 +630,10 @@ export default function Dashboard() {
                   {b.label}
                 </button>
               ))}
+            {/* These layers belong to the globe renderers; City 3D has its own
+                controls, so don't show dead toggles there. */}
+            {globeMode !== "city" && (
+            <>
             <button
               type="button"
               onClick={() => setAuroraEnabled((v) => !v)}
@@ -679,9 +697,12 @@ export default function Dashboard() {
               <AlertTriangle className="size-3" />
               Hazard {disastersEnabled ? "On" : "Off"}
             </button>
+            </>
+            )}
           </div>
 
-          {/* Legend */}
+          {/* Legend (globe layers only) */}
+          {globeMode !== "city" && (
           <div className="absolute bottom-2 left-2 z-10 hidden border-2 border-ink bg-chalk p-2 sm:block">
             <div className="nb-label mb-1">Layers</div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 font-mono text-[9px] uppercase tracking-wider">
@@ -718,9 +739,18 @@ export default function Dashboard() {
               </span>
             </div>
           </div>
+          )}
 
-          <div className="absolute bottom-2 right-2 z-10 hidden border-2 border-ink bg-chalk px-2 py-1 font-mono text-[9px] uppercase tracking-wider md:block">
-            Drag to rotate · scroll to zoom · click to probe
+          {/* In City 3D the hint moves left so it never covers MapLibre's
+              attribution (bottom-right). */}
+          <div
+            className={`absolute bottom-2 z-10 hidden border-2 border-ink bg-chalk px-2 py-1 font-mono text-[9px] uppercase tracking-wider md:block ${
+              globeMode === "city" ? "left-2" : "right-2"
+            }`}
+          >
+            {globeMode === "city"
+              ? "Drag to pan · right-drag to tilt & rotate · scroll to zoom · click to probe"
+              : "Drag to rotate · scroll to zoom · click to probe"}
           </div>
         </section>
 
