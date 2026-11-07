@@ -20,14 +20,13 @@ const SOURCE_ROWS: [string, string, string][] = [
   ["City search / geocoding", "Nominatim", "No"],
   ["Live TV index", "iptv-org", "No"],
   ["Live CCTV cameras", "Public camera networks · always-on HLS demo feeds", "No"],
-  ["World news", "GDELT (open) · GNews API · Google News RSS", "Optional key"],
+  ["World news", "GDELT (open) · GNews API · Google News RSS", "No"],
 ];
 
 const TOC = [
   ["overview", "Overview"],
   ["sources", "Live data sources"],
   ["architecture", "Architecture"],
-  ["api-keys", "API keys"],
   ["pwa", "PWA & offline"],
   ["android", "Android app (APK)"],
   ["troubleshooting", "Troubleshooting"],
@@ -244,7 +243,7 @@ export default function Docs() {
                 ],
                 [
                   "Optional edge layer",
-                  "Keyed integrations run as small Vercel functions (see API keys) that keep secrets server-side. Without them, everything still works.",
+                  "A few feeds are proxied through small serverless functions so the browser never has to deal with their cross-origin or rate-limit quirks. Without them, the console falls back to open feeds and everything still works.",
                 ],
                 [
                   "PWA",
@@ -275,90 +274,7 @@ export default function Docs() {
             </ul>
           </Section>
 
-          <Section id="api-keys" n="04" title="API keys">
-            <p>
-              Everything works with zero configuration. A few feeds can be{" "}
-              <b>upgraded with an API key</b> — the key is stored as a Vercel
-              environment variable and read server-side, so it never reaches
-              your browser.
-            </p>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full border-collapse font-mono text-[11px]">
-                <thead>
-                  <tr className="border-b-2 border-ink bg-muted">
-                    <th className="border-2 border-ink px-2 py-1.5 text-left font-bold uppercase tracking-wider">
-                      Env var
-                    </th>
-                    <th className="border-2 border-ink px-2 py-1.5 text-left font-bold uppercase tracking-wider">
-                      Unlocks
-                    </th>
-                    <th className="border-2 border-ink px-2 py-1.5 text-left font-bold uppercase tracking-wider">
-                      Get it
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="border-2 border-ink px-2 py-1.5 font-semibold">
-                      NEWS_API_KEY
-                    </td>
-                    <td className="border-2 border-ink px-2 py-1.5 text-muted-foreground">
-                      Keyed GNews world-news feed (100 free req/day)
-                    </td>
-                    <td className="border-2 border-ink px-2 py-1.5">
-                      <a
-                        href="https://gnews.io"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-cobalt underline hover:text-ink"
-                      >
-                        gnews.io <ExternalLink className="size-3" />
-                      </a>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <ol className="mt-3 flex list-none flex-col gap-2">
-              {[
-                "Vercel project → Settings → Environment Variables",
-                "Add NEWS_API_KEY and paste your key, then redeploy",
-                "The console switches the news feed to KEYED // GN (responses are CDN-cached, so one upstream call serves all visitors)",
-                "No key? The feed auto-falls back to the open GDELT wire (keyless, proxied via api/news.ts), then Google News RSS — the console is never dead",
-              ].map((step, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center border-2 border-ink bg-volt font-mono text-[9px] font-bold">
-                    {i + 1}
-                  </span>
-                  <span className="text-xs leading-relaxed">{step}</span>
-                </li>
-              ))}
-            </ol>
-            <p className="mt-4">
-              One exception is <b>client-side by design</b>:{" "}
-              <span className="font-mono text-[11px] font-semibold">
-                VITE_CESIUM_ION_TOKEN
-              </span>
-              , which unlocks the <b>Photoreal 3D</b> globe mode. Vite inlines
-              every <span className="font-mono">VITE_*</span> variable into the
-              shipped JavaScript, because the browser needs the token to request
-              tiles — so protect it with the token&apos;s{" "}
-              <b>Allowed origins</b> list at{" "}
-              <a
-                href="https://ion.cesium.com/tokens"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-cobalt underline hover:text-ink"
-              >
-                ion.cesium.com/tokens <ExternalLink className="size-3" />
-              </a>{" "}
-              (add your deployed origin and <span className="font-mono">http://localhost:5173</span>
-              ), then set the variable on Vercel/redeploy. Without it, the
-              console simply hides the mode behind a link.
-            </p>
-          </Section>
-
-          <Section id="pwa" n="05" title="PWA & offline">
+          <Section id="pwa" n="04" title="PWA & offline">
             <p>
               Terra-Core is an installable PWA. On desktop, click the install
               icon in the address bar; on mobile, use{" "}
@@ -377,7 +293,7 @@ export default function Docs() {
             </p>
           </Section>
 
-          <Section id="android" n="06" title="Android app (APK)">
+          <Section id="android" n="05" title="Android app (APK)">
             <p>
               Terra-Core ships as a native Android app built with{" "}
               <b>Capacitor</b> — the exact same static web build, wrapped in a
@@ -422,7 +338,7 @@ cd android && ./gradlew assembleDebug`}
             </p>
           </Section>
 
-          <Section id="troubleshooting" n="07" title="Troubleshooting">
+          <Section id="troubleshooting" n="06" title="Troubleshooting">
             <ul className="flex list-none flex-col gap-3">
               {[
                 [
@@ -459,7 +375,7 @@ cd android && ./gradlew assembleDebug`}
             </ul>
           </Section>
 
-          <Section id="credits" n="08" title="Credits">
+          <Section id="credits" n="07" title="Credits">
             <p className="font-sans text-sm">
               <b>Terra-Core</b> is an extension of{" "}
               <a

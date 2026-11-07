@@ -40,10 +40,6 @@ const FAQS: { q: string; a: string }[] = [
     a: "A tilted 3D map of any place you search. It draws extruded buildings from OpenStreetMap (via OpenFreeMap), real terrain relief, and an optional satellite-imagery toggle, with live earthquakes and aircraft on top. Search a city, click anywhere to probe it, right-drag to tilt and rotate, or hit Orbit for a slow fly-around. It's lazy-loaded and only downloads when you switch to it.",
   },
   {
-    q: "Do I need an account?",
-    a: "No. There's no sign-in or sign-up — Terra-Core runs in local mode and reads from public data feeds, so you can open the console and start exploring straight away. Your watchlist and preferences stay in this browser.",
-  },
-  {
     q: "Where is my watchlist stored?",
     a: "In your browser's local storage — it never leaves your device. It persists across reloads and visits, but is not synced between devices or browsers.",
   },
